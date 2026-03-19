@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 export function getToken() {
   return localStorage.getItem("admin_token");
@@ -14,14 +14,27 @@ export async function apiFetch(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch (error) {
+    throw new Error("Nao foi possivel conectar com a API. Verifique se o backend esta ligado.");
+  }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || "Erro na API");
+    const errorJson = await response.json().catch(() => null);
+    const errorText = errorJson?.error || errorJson?.message;
+
+    if (errorText) {
+      throw new Error(errorText);
+    }
+
+    throw new Error(`Erro na API (${response.status})`);
   }
+
   return response.json();
 }

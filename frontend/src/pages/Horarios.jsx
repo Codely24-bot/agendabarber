@@ -1,54 +1,209 @@
+import { useEffect, useState } from "react";
 import Topbar from "../components/Topbar.jsx";
+import { apiFetch } from "../api.js";
 
 const slots = [
+  "07:00",
+  "08:00",
   "09:00",
   "10:00",
   "11:00",
   "14:00",
   "15:00",
-  "16:00"
+  "16:00",
+  "17:00",
+  "18:00",
+  "19:00"
 ];
 
+function formatDate(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function formatDateLabel(date) {
+  const [year, month, day] = String(date).slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getWeekEnd(start) {
+  const base = new Date(`${start}T00:00:00`);
+  const end = new Date(base);
+  end.setDate(base.getDate() + 6);
+  return formatDate(end);
+}
+
 export default function Horarios() {
+  const [manualForm, setManualForm] = useState({
+    data: getToday(),
+    hora: "07:00"
+  });
+  const [weekStart, setWeekStart] = useState(getToday());
+  const [horarios, setHorarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function loadHorarios() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const dataFinal = getWeekEnd(weekStart);
+      const response = await apiFetch(
+        `/horarios?dataInicial=${encodeURIComponent(weekStart)}&dataFinal=${encodeURIComponent(dataFinal)}`
+      );
+      setHorarios(response);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadHorarios();
+  }, [weekStart]);
+
+  async function handleGenerateWeek() {
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await apiFetch("/horarios/gerar-semana", {
+        method: "POST",
+        body: JSON.stringify({ dataInicial: weekStart })
+      });
+      setSuccess(`Semana gerada com ${response.inserted} novos horarios.`);
+      await loadHorarios();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleManualCreate(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiFetch("/horarios", {
+        method: "POST",
+        body: JSON.stringify(manualForm)
+      });
+      setSuccess(`Horario criado para ${formatDateLabel(manualForm.data)} as ${manualForm.hora}.`);
+      await loadHorarios();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <section className="flex flex-col gap-10">
       <Topbar title="Gestao de horarios" subtitle="Horarios" />
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="glass rounded-3xl p-8 shadow-soft">
           <h3 className="font-display text-xl">Agenda semanal automatica</h3>
           <p className="text-sm text-ink/60 mt-2">
-            Gere horarios padrao de segunda a sexta rapidamente.
+            Gere horarios de terca a sabado, das 07:00 as 19:00, com pausa de 12:00 a 14:00.
           </p>
-          <div className="flex flex-wrap gap-3 mt-6">
-            {slots.map((slot) => (
-              <span
-                key={slot}
-                className="px-4 py-2 rounded-full bg-white/70 border border-ink/10 text-sm"
-              >
-                {slot}
-              </span>
-            ))}
+          <div className="mt-6 flex flex-col gap-4">
+            <label className="text-sm text-ink/70">
+              Inicio da semana
+              <input
+                className="mt-2 w-full px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
+                type="date"
+                value={weekStart}
+                onChange={(event) => setWeekStart(event.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {slots.map((slot) => (
+                <span
+                  key={slot}
+                  className="px-4 py-2 rounded-full bg-white/70 border border-ink/10 text-sm"
+                >
+                  {slot}
+                </span>
+              ))}
+            </div>
+            <button
+              className="mt-2 bg-ink text-cream rounded-2xl px-5 py-3 text-sm disabled:opacity-60"
+              onClick={handleGenerateWeek}
+              type="button"
+              disabled={submitting}
+            >
+              {submitting ? "Gerando..." : "Gerar semana"}
+            </button>
           </div>
-          <button className="mt-6 bg-ink text-cream rounded-2xl px-5 py-3 text-sm">
-            Gerar semana
-          </button>
         </div>
         <div className="glass rounded-3xl p-8 shadow-soft">
           <h3 className="font-display text-xl">Criar horario manual</h3>
-          <div className="flex flex-col gap-4 mt-6">
+          <form className="flex flex-col gap-4 mt-6" onSubmit={handleManualCreate}>
             <input
               className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
               placeholder="Data (YYYY-MM-DD)"
+              type="date"
+              value={manualForm.data}
+              onChange={(event) =>
+                setManualForm((current) => ({ ...current, data: event.target.value }))
+              }
             />
             <input
               className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
               placeholder="Hora (HH:MM)"
+              type="time"
+              value={manualForm.hora}
+              onChange={(event) =>
+                setManualForm((current) => ({ ...current, hora: event.target.value }))
+              }
             />
-            <button className="bg-ink text-cream rounded-2xl py-3 text-sm">
+            <button className="bg-ink text-cream rounded-2xl py-3 text-sm" disabled={submitting}>
               Criar horario
             </button>
-          </div>
+          </form>
         </div>
+      </div>
+      <div className="glass rounded-3xl p-8 shadow-soft">
+        <h3 className="font-display text-xl">Horarios da semana</h3>
+        {loading ? <p className="text-sm text-ink/60 mt-4">Carregando horarios...</p> : null}
+        {!loading && !horarios.length ? (
+          <p className="text-sm text-ink/60 mt-4">Nenhum horario encontrado para este periodo.</p>
+        ) : null}
+        {!loading && horarios.length ? (
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-ink/60">
+                  <th className="py-3">Data</th>
+                  <th className="py-3">Hora</th>
+                  <th className="py-3">Disponivel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {horarios.map((horario) => (
+                  <tr key={`${horario.data}-${horario.hora}`} className="border-t border-ink/5">
+                    <td className="py-4">{formatDateLabel(horario.data)}</td>
+                    <td className="py-4">{horario.hora}</td>
+                    <td className="py-4">{horario.disponivel ? "Sim" : "Nao"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
     </section>
   );

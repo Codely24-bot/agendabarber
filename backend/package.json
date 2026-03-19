@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "db:apply-schema": "node scripts/apply-schema.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

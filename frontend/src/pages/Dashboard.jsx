@@ -1,16 +1,54 @@
+import { useEffect, useState } from "react";
 import Topbar from "../components/Topbar.jsx";
+import { apiFetch } from "../api.js";
 
-const cards = [
-  { label: "Agendamentos do dia", value: "18" },
-  { label: "Total de clientes", value: "248" },
-  { label: "Horarios livres", value: "7" },
-  { label: "Faturamento estimado", value: "R$ 2.340" }
-];
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState(null);
+  const [freeSlots, setFreeSlots] = useState(0);
+  const [totalClients, setTotalClients] = useState(0);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadDashboard() {
+      const today = getToday();
+      setError("");
+
+      try {
+        const [resumo, agendamentos, horariosDisponiveis] = await Promise.all([
+          apiFetch(`/relatorios/resumo?data=${encodeURIComponent(today)}`),
+          apiFetch(`/agendamentos?data=${encodeURIComponent(today)}`),
+          apiFetch(`/horarios-disponiveis?data=${encodeURIComponent(today)}`)
+        ]);
+
+        setSummary(resumo);
+        setFreeSlots(horariosDisponiveis.length);
+        setTotalClients(new Set(agendamentos.map((item) => item.telefone)).size);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+
+    loadDashboard();
+  }, []);
+
+  const cards = [
+    { label: "Agendamentos do dia", value: summary?.total || "0" },
+    { label: "Total de clientes", value: totalClients },
+    { label: "Horarios livres", value: freeSlots },
+    {
+      label: "Faturamento estimado",
+      value: `R$ ${Number(summary?.faturamento_estimado || 0).toFixed(2)}`
+    }
+  ];
+
   return (
     <section className="flex flex-col gap-10">
       <Topbar title="Resumo do dia" subtitle="Dashboard" />
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="glass rounded-3xl p-6 shadow-soft">
@@ -25,16 +63,16 @@ export default function Dashboard() {
         <h3 className="font-display text-xl">Highlights</h3>
         <div className="grid gap-6 md:grid-cols-3 mt-6">
           <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
-            <p className="text-sm text-ink/60">Servico mais vendido</p>
-            <p className="font-medium mt-2">Corte classico</p>
+            <p className="text-sm text-ink/60">Confirmados</p>
+            <p className="font-medium mt-2">{summary?.confirmados || 0}</p>
           </div>
           <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
-            <p className="text-sm text-ink/60">Horario pico</p>
-            <p className="font-medium mt-2">18:00 - 20:00</p>
+            <p className="text-sm text-ink/60">Cancelados</p>
+            <p className="font-medium mt-2">{summary?.cancelados || 0}</p>
           </div>
           <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
-            <p className="text-sm text-ink/60">Satisfacao</p>
-            <p className="font-medium mt-2">4.9 / 5</p>
+            <p className="text-sm text-ink/60">Concluidos</p>
+            <p className="font-medium mt-2">{summary?.concluidos || 0}</p>
           </div>
         </div>
       </div>

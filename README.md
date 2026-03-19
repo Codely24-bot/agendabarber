@@ -9,6 +9,7 @@ Este projeto possui 3 camadas principais:
 ## Backend
 
 - Tecnologias: Node.js + Express + PostgreSQL
+- Compatível com Supabase Postgres via `DATABASE_URL`
 - Endpoints principais:
   - `GET /horarios-disponiveis?data=YYYY-MM-DD`
   - `POST /agendar`
@@ -22,6 +23,17 @@ Configurar variaveis:
 
 ```
 cp backend/.env.example backend/.env
+```
+
+Para usar com Supabase:
+
+1. Copie a connection string do projeto no painel do Supabase
+2. Preencha `DATABASE_URL` em `backend/.env`
+3. Rode o schema no banco:
+
+```
+cd backend
+npm run db:apply-schema
 ```
 
 Schema do banco:
