@@ -4,7 +4,7 @@ import { apiFetch } from "../api.js";
 
 const CHATBOT_QR_URL =
   import.meta.env.VITE_CHATBOT_URL ||
-  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/qr`;
+  `${import.meta.env.VITE_API_URL || ""}/qr`;
 
 function getToday() {
   return new Date().toISOString().slice(0, 10);

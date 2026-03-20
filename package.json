@@ -1,0 +1,16 @@
+{
+  "name": "agendabarber",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace frontend",
+    "start": "npm run start --workspace backend"
+  }
+}

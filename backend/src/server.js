@@ -3,7 +3,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import chatbotModule from "../../chatbot/robo.js";
 import horariosRoutes from "./routes/horarios.js";
 import agendamentosRoutes from "./routes/agendamentos.js";
 import adminRoutes from "./routes/admin.js";
@@ -19,7 +18,7 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
-const { initializeChatbot, registerChatbotRoutes } = chatbotModule;
+const chatbotEnabled = process.env.CHATBOT_ENABLED === "true";
 
 app.use(cors());
 app.use(express.json());
@@ -33,7 +32,6 @@ app.use(horariosRoutes);
 app.use(agendamentosRoutes);
 app.use(relatoriosRoutes);
 app.use(servicosRoutes);
-registerChatbotRoutes(app);
 
 app.use(express.static(frontendDistPath));
 
@@ -56,15 +54,96 @@ app.get("*", (req, res, next) => {
 
 app.use(errorHandler);
 
+function registerDisabledChatbotRoutes(application) {
+  const payload = {
+    status: "disabled",
+    qrPagePath: "/qr",
+    qrImagePath: "/qr.png",
+    updatedAt: null,
+    message: "Chatbot desativado neste ambiente."
+  };
+
+  application.get("/chatbot/status", (req, res) => {
+    res.json(payload);
+  });
+
+  application.get("/qr.png", (req, res) => {
+    res.status(404).json(payload);
+  });
+
+  application.get("/qr", (req, res) => {
+    res.type("html").send(`<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chatbot indisponivel</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f6f3ee;
+        color: #1f2937;
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      main {
+        width: min(100%, 520px);
+        background: #fffdf8;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 18px 40px rgba(31, 41, 55, 0.12);
+        text-align: center;
+      }
+      p {
+        line-height: 1.6;
+        color: #4b5563;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chatbot indisponivel</h1>
+      <p>O modulo do WhatsApp esta desativado neste ambiente de deploy.</p>
+      <p>Se desejar usa-lo, habilite <strong>CHATBOT_ENABLED=true</strong> em um ambiente compativel.</p>
+    </main>
+  </body>
+</html>`);
+  });
+}
+
 startReminders();
 ensureDefaultServices().catch((error) => {
   console.error("Falha ao semear servicos padrao:", error);
 });
-initializeChatbot().catch((error) => {
-  console.error("Falha ao iniciar chatbot integrado:", error);
-});
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log(`API rodando na porta ${port}`);
+async function bootstrap() {
+  if (chatbotEnabled) {
+    try {
+      const chatbotModule = await import("../../chatbot/robo.js");
+      const { initializeChatbot, registerChatbotRoutes } = chatbotModule.default;
+      registerChatbotRoutes(app);
+      initializeChatbot().catch((error) => {
+        console.error("Falha ao iniciar chatbot integrado:", error);
+      });
+    } catch (error) {
+      console.error("Falha ao carregar chatbot integrado:", error);
+      registerDisabledChatbotRoutes(app);
+    }
+  } else {
+    registerDisabledChatbotRoutes(app);
+  }
+
+  const port = process.env.PORT || 4000;
+  app.listen(port, () => {
+    console.log(`API rodando na porta ${port}`);
+    console.log(`Chatbot integrado ${chatbotEnabled ? "habilitado" : "desabilitado"}.`);
+  });
+}
+
+bootstrap().catch((error) => {
+  console.error("Falha ao iniciar servidor:", error);
+  process.exit(1);
 });

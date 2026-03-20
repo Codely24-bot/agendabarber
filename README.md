@@ -6,6 +6,34 @@ Este projeto possui 3 camadas principais:
 2. Painel Admin (`frontend`)
 3. Integracao com chatbot via API (`backend/src/integrations/chatbotAdapter.js`)
 
+## Deploy no Railway
+
+O repositório foi preparado para deploy pelo root no Railway.
+
+- Build command: `npm run build`
+- Start command: `npm start`
+- Node: `20.x` via `.nvmrc`
+
+### Variaveis recomendadas no Railway
+
+- `PORT`: definido automaticamente pelo Railway
+- `DATABASE_URL`: connection string do Postgres/Supabase
+- `DATABASE_SSL`: `true`
+- `ADMIN_USER`: usuario do painel
+- `ADMIN_PASS`: senha do painel
+- `BARBEARIA_ID`: identificador da barbearia, ex. `default`
+- `BARBEARIA_NOME`: nome exibido no sistema
+- `API_URL`: URL publica da aplicacao, ex. `https://seu-app.railway.app`
+- `CHATBOT_WEBHOOK_URL`: opcional, URL do webhook do chatbot
+- `CHATBOT_ENABLED`: `false` por padrao no Railway
+
+### Observacoes de deploy
+
+- O frontend e compilado no build e servido pelo backend em producao.
+- O frontend usa a mesma origem da aplicacao por padrao, entao `VITE_API_URL` pode ficar vazio.
+- O modulo de WhatsApp foi deixado opcional no servidor para evitar falhas de deploy em ambientes sem Chromium/sessao persistente.
+- Se quiser executar o chatbot no Railway, use um servico separado e habilite `CHATBOT_ENABLED=true` apenas em ambiente compativel.
+
 ## Backend
 
 - Tecnologias: Node.js + Express + PostgreSQL
