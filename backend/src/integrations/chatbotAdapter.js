@@ -28,7 +28,7 @@ export async function sendChatbotCompletionThanks(agendamento) {
     type: "agendamento_concluido",
     data: {
       telefone: agendamento.telefone,
-      texto: `Obrigado, ${agendamento.nome}, pela confianca e pelo compromisso com seu horario. Foi um prazer atender voce na ${process.env.BARBEARIA_NOME || "barbearia"}. Esperamos voce novamente!`
+      texto: `🙏 Agradecemos, ${agendamento.nome}, pela confianca em nosso atendimento. Foi um prazer recebe-lo(a) na ${process.env.BARBEARIA_NOME || "barbearia"} ✂️ Esperamos ve-lo(a) novamente em breve.`
     }
   });
 }

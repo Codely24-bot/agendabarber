@@ -78,7 +78,7 @@ const formatarDataBr = (data = "") => {
 };
 
 const menuPrincipal = () =>
-  `Ola Bem Vindo (a) a ${getBarbeariaNome()}!\n\n1 . Marcar Horario\n2 . Desmarcar Horario\n3 . Falar Com Proprietario`;
+  `👋 Seja bem-vindo(a) a ${getBarbeariaNome()}.\n\n1 . 📅 Agendar horario\n2 . ❌ Cancelar agendamento\n3 . 💬 Falar com o proprietario`;
 
 const resetSession = (session) => {
   session.step = "menu";
@@ -374,8 +374,8 @@ async function handleWebhookPayload(payload) {
   const texto = payload.data.texto
     ? payload.data.texto
     : payload.data.lembrete
-    ? `Lembrete: seu horario e hoje as ${payload.data.hora}.`
-    : `Agendamento confirmado para ${payload.data.data} as ${payload.data.hora}.`;
+    ? `⏰ Lembrete: seu horario esta agendado para hoje, as ${payload.data.hora}.`
+    : `✅ Seu agendamento foi confirmado para ${payload.data.data} as ${payload.data.hora}.`;
 
   await client.sendMessage(chatId, texto);
   return { ok: true };
@@ -440,7 +440,7 @@ async function handleIncomingMessage(msg) {
         await typing();
         await client.sendMessage(
           msg.from,
-          "Nao encontrei horarios livres nesta semana. Tente novamente mais tarde ou fale com o proprietario."
+          "Informamos que nao ha horarios livres nesta semana. Tente novamente mais tarde ou fale com o proprietario."
         );
         return;
       }
@@ -450,7 +450,7 @@ async function handleIncomingMessage(msg) {
       await typing();
         await client.sendMessage(
           msg.from,
-          `Escolha um dia disponivel:\n\n${diasDisponiveis
+          `📅 Selecione um dia disponivel:\n\n${diasDisponiveis
             .map(
               (dia, index) =>
               `${index + 1} . ${formatarDataBr(dia.data)} (${dia.disponiveis} horarios livres)`
@@ -468,7 +468,7 @@ async function handleIncomingMessage(msg) {
         await typing();
         await client.sendMessage(
           msg.from,
-          "Nao encontrei horarios ativos neste numero. Se quiser, envie *menu* para voltar."
+          "Nao localizei agendamentos ativos para este numero. Se desejar, envie *menu* para voltar ao inicio."
         );
         return;
       }
@@ -478,7 +478,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        `Escolha o numero do horario que deseja desmarcar:\n\n${agendamentos
+        `🗓️ Selecione o numero do agendamento que deseja cancelar:\n\n${agendamentos
           .map(
             (agendamento, index) =>
               `${index + 1} . ${agendamento.data} as ${agendamento.hora} - ${agendamento.servico}`
@@ -494,7 +494,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Perfeito. Vou pausar o robo por 5 minutos para o proprietario assumir esta conversa."
+        "🤝 Perfeito. O atendimento automatico sera pausado por 5 minutos para que o proprietario possa assumir esta conversa."
       );
       return;
     }
@@ -511,7 +511,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Numero invalido. Escolha um dos dias da lista para continuar."
+        "⚠️ Opcao invalida. Selecione um dos dias da lista para continuar."
       );
       return;
     }
@@ -525,7 +525,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Este dia acabou de ficar sem horarios livres. Escolha outro dia."
+        "Este dia ficou indisponivel no momento. Por favor, escolha outra data."
       );
       session.step = "menu";
       session.diasDisponiveis = null;
@@ -538,7 +538,7 @@ async function handleIncomingMessage(msg) {
     await typing();
     await client.sendMessage(
       msg.from,
-      `Horarios disponiveis para ${formatarDataBr(dia.data)}:\n\n${horarios
+      `🕐 Horarios disponiveis para ${formatarDataBr(dia.data)}:\n\n${horarios
         .map((hora, index) => `${index + 1} . ${hora}`)
         .join("\n")}`
     );
@@ -553,7 +553,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Numero invalido. Escolha um dos horarios da lista."
+        "⚠️ Opcao invalida. Selecione um dos horarios da lista."
       );
       return;
     }
@@ -561,7 +561,7 @@ async function handleIncomingMessage(msg) {
     session.hora = horaEscolhida;
     session.step = "agendar_nome";
     await typing();
-    await client.sendMessage(msg.from, "Qual e o seu nome completo?");
+    await client.sendMessage(msg.from, "📝 Por favor, informe seu nome completo.");
     return;
   }
 
@@ -573,7 +573,7 @@ async function handleIncomingMessage(msg) {
     await typing();
     await client.sendMessage(
       msg.from,
-      `Qual servico deseja?\n${session.servicosDisponiveis
+      `✂️ Informe o servico desejado:\n${session.servicosDisponiveis
         .map((servico, index) => `${index + 1} . ${servico}`)
         .join("\n")}`
     );
@@ -600,7 +600,7 @@ async function handleIncomingMessage(msg) {
     await typing();
     await client.sendMessage(
       msg.from,
-      `Agendamento confirmado para ${formatarDataBr(agendamento.data)} as ${agendamento.hora}.`
+      `✅ Agendamento confirmado para ${formatarDataBr(agendamento.data)} as ${agendamento.hora}.\n🙏 Agradecemos pelas informacoes. Seu horario foi reservado com sucesso.`
     );
     await enviarMenu();
     return;
@@ -614,7 +614,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Numero invalido. Escolha um dos numeros da lista para desmarcar o horario."
+        "⚠️ Opcao invalida. Selecione um dos numeros da lista para cancelar o agendamento."
       );
       return;
     }
@@ -624,7 +624,7 @@ async function handleIncomingMessage(msg) {
     await typing();
     await client.sendMessage(
       msg.from,
-      `Horario desmarcado com sucesso: ${formatarDataBr(agendamento.data)} as ${agendamento.hora}.`
+      `❌ Agendamento cancelado com sucesso: ${formatarDataBr(agendamento.data)} as ${agendamento.hora}.`
     );
     await enviarMenu();
   }
