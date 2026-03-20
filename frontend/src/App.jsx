@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Agenda from "./pages/Agenda.jsx";
 import Horarios from "./pages/Horarios.jsx";
 import Login from "./pages/Login.jsx";
+import Servicos from "./pages/Servicos.jsx";
 import { getToken } from "./api.js";
 
 function ProtectedLayout({ children }) {
@@ -45,6 +46,14 @@ export default function App() {
         element={
           <ProtectedLayout>
             <Horarios />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/servicos"
+        element={
+          <ProtectedLayout>
+            <Servicos />
           </ProtectedLayout>
         }
       />

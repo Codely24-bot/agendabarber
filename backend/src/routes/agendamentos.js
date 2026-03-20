@@ -7,6 +7,7 @@ import {
   sendChatbotConfirmation
 } from "../integrations/chatbotAdapter.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { ensureDefaultServices } from "../services/serviceCatalog.js";
 
 const router = express.Router();
 
@@ -19,6 +20,21 @@ const agendarSchema = z.object({
   servico: z.string()
 });
 
+async function ensureServiceExists(client, servico, barbeariaId) {
+  const serviceResult = await client.query(
+    `
+      SELECT id
+      FROM servicos
+      WHERE barbearia_id = $1
+        AND nome = $2
+      LIMIT 1
+    `,
+    [barbeariaId, servico]
+  );
+
+  return serviceResult.rows.length > 0;
+}
+
 router.post("/agendar", asyncHandler(async (req, res) => {
   const parsed = agendarSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -30,6 +46,15 @@ router.post("/agendar", asyncHandler(async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const currentBarbershop = barbeariaId || "default";
+    await ensureDefaultServices(currentBarbershop);
+    const serviceExists = await ensureServiceExists(client, servico, currentBarbershop);
+
+    if (!serviceExists) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Servico nao cadastrado no catalogo" });
+    }
+
     const disponibilidade = await client.query(
       `
         SELECT h.id
@@ -46,11 +71,11 @@ router.post("/agendar", asyncHandler(async (req, res) => {
           AND a.id IS NULL
         LIMIT 1
       `,
-      [data, hora, barbeariaId || "default"]
+      [data, hora, currentBarbershop]
     );
 
     if (disponibilidade.rows.length === 0) {
-      await query("ROLLBACK");
+      await client.query("ROLLBACK");
       return res.status(409).json({ error: "Horario indisponivel" });
     }
 
@@ -62,7 +87,7 @@ router.post("/agendar", asyncHandler(async (req, res) => {
           ($1, $2, $3, $4, $5, $6, 'confirmado')
         RETURNING *
       `,
-      [barbeariaId || "default", nome, telefone, data, hora, servico]
+      [currentBarbershop, nome, telefone, data, hora, servico]
     );
 
     await client.query(
@@ -71,7 +96,7 @@ router.post("/agendar", asyncHandler(async (req, res) => {
         SET disponivel = false
         WHERE data = $1 AND hora = $2 AND barbearia_id = $3
       `,
-      [data, hora, barbeariaId || "default"]
+      [data, hora, currentBarbershop]
     );
 
     await client.query("COMMIT");
@@ -130,6 +155,19 @@ router.put("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) => {
     }
 
     const agendamentoAtual = atual.rows[0];
+    await ensureDefaultServices(agendamentoAtual.barbearia_id);
+    const novoServico = servico || agendamentoAtual.servico;
+    const serviceExists = await ensureServiceExists(
+      client,
+      novoServico,
+      agendamentoAtual.barbearia_id
+    );
+
+    if (!serviceExists) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Servico nao cadastrado no catalogo" });
+    }
+
     const novaData = data || agendamentoAtual.data;
     const novaHora = hora || agendamentoAtual.hora;
     const mudouSlot =

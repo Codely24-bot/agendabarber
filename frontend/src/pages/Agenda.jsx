@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import Topbar from "../components/Topbar.jsx";
 import { apiFetch } from "../api.js";
 
-const CHATBOT_QR_URL = import.meta.env.VITE_CHATBOT_URL || "/qr";
+const CHATBOT_QR_URL =
+  import.meta.env.VITE_CHATBOT_URL ||
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/qr`;
 
 function getToday() {
   return new Date().toISOString().slice(0, 10);
@@ -20,6 +22,7 @@ function formatDateLabel(date) {
 export default function Agenda() {
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [agendamentos, setAgendamentos] = useState([]);
+  const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -44,6 +47,28 @@ export default function Agenda() {
     loadAgendamentos();
   }, [selectedDate]);
 
+  useEffect(() => {
+    async function loadServicos() {
+      try {
+        const response = await apiFetch("/servicos");
+        setServicos(response);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+
+    loadServicos();
+  }, []);
+
+  function getServicePromptMessage() {
+    if (!servicos.length) {
+      return "Servico:";
+    }
+
+    const options = servicos.map((item) => item.nome).join(", ");
+    return `Servico (${options}):`;
+  }
+
   async function handleNewAppointment() {
     const nome = window.prompt("Nome do cliente:");
     if (!nome) return;
@@ -57,7 +82,10 @@ export default function Agenda() {
     const hora = window.prompt("Hora do agendamento (HH:MM):", "07:00");
     if (!hora) return;
 
-    const servico = window.prompt("Servico:", "Corte");
+    const servico = window.prompt(
+      getServicePromptMessage(),
+      servicos[0]?.nome || "Corte"
+    );
     if (!servico) return;
 
     setError("");
@@ -92,7 +120,7 @@ export default function Agenda() {
     const hora = window.prompt("Novo horario (HH:MM):", agendamento.hora);
     if (!hora) return;
 
-    const servico = window.prompt("Novo servico:", agendamento.servico);
+    const servico = window.prompt(getServicePromptMessage(), agendamento.servico);
     if (!servico) return;
 
     setError("");
@@ -208,6 +236,12 @@ export default function Agenda() {
               Novo agendamento
             </button>
           </div>
+        </div>
+        <div className="mt-5 rounded-2xl bg-white/55 border border-ink/5 px-4 py-3">
+          <p className="text-sm text-ink/70">
+            Servicos disponiveis para faturamento:{" "}
+            {servicos.length ? servicos.map((item) => item.nome).join(", ") : "carregando..."}
+          </p>
         </div>
         <div className="mt-6 overflow-x-auto">
           {loading ? <p className="text-sm text-ink/60">Carregando agenda...</p> : null}

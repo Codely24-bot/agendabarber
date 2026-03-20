@@ -3,7 +3,8 @@ import { NavLink } from "react-router-dom";
 const links = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/agenda", label: "Agenda" },
-  { to: "/horarios", label: "Horarios" }
+  { to: "/horarios", label: "Horarios" },
+  { to: "/servicos", label: "Servicos" }
 ];
 
 export default function Sidebar() {

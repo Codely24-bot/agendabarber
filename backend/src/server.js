@@ -10,6 +10,8 @@ import adminRoutes from "./routes/admin.js";
 import relatoriosRoutes from "./routes/relatorios.js";
 import { startReminders } from "./services/reminders.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import servicosRoutes from "./routes/servicos.js";
+import { ensureDefaultServices } from "./services/serviceCatalog.js";
 
 dotenv.config();
 
@@ -30,6 +32,7 @@ app.use(adminRoutes);
 app.use(horariosRoutes);
 app.use(agendamentosRoutes);
 app.use(relatoriosRoutes);
+app.use(servicosRoutes);
 registerChatbotRoutes(app);
 
 app.use(express.static(frontendDistPath));
@@ -42,6 +45,7 @@ app.get("*", (req, res, next) => {
     req.path.startsWith("/agendamento") ||
     req.path.startsWith("/agendamentos") ||
     req.path.startsWith("/relatorios") ||
+    req.path.startsWith("/servicos") ||
     req.path === "/health"
   ) {
     return next();
@@ -53,6 +57,9 @@ app.get("*", (req, res, next) => {
 app.use(errorHandler);
 
 startReminders();
+ensureDefaultServices().catch((error) => {
+  console.error("Falha ao semear servicos padrao:", error);
+});
 initializeChatbot().catch((error) => {
   console.error("Falha ao iniciar chatbot integrado:", error);
 });

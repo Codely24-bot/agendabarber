@@ -26,7 +26,7 @@ const pausasProprietario = new Map();
 const horariosRegex = /^\d{2}:\d{2}$/;
 const dataRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-const servicos = ["Corte", "Barba", "Corte e Barba"];
+const servicosPadrao = ["Corte", "Barba", "Corte + Barba", "Pintura", "Sobrancelha"];
 
 const authPath = path.join(__dirname, ".wwebjs_auth");
 
@@ -87,17 +87,37 @@ const resetSession = (session) => {
   session.nome = null;
   session.telefone = null;
   session.servico = null;
+  session.servicosDisponiveis = null;
   session.diasDisponiveis = null;
   session.horariosDisponiveis = null;
   session.agendamentosCancelamento = null;
 };
 
-const mapearServico = (texto, original) => {
-  if (texto === "1") return servicos[0];
-  if (texto === "2") return servicos[1];
-  if (texto === "3") return servicos[2];
+async function obterServicosDisponiveis() {
+  try {
+    const servicos = await apiAdminRequest(
+      `/servicos?barbeariaId=${encodeURIComponent(getBarbeariaId())}`
+    );
 
-  const servicoEncontrado = servicos.find(
+    if (Array.isArray(servicos) && servicos.length) {
+      return servicos.map((servico) => servico.nome);
+    }
+  } catch (error) {
+    console.log("Falha ao carregar servicos do catalogo:", error.message);
+  }
+
+  return servicosPadrao;
+}
+
+const mapearServico = (texto, original, servicosDisponiveis) => {
+  const lista = servicosDisponiveis?.length ? servicosDisponiveis : servicosPadrao;
+  const indiceEscolhido = Number(texto);
+
+  if (Number.isInteger(indiceEscolhido) && lista[indiceEscolhido - 1]) {
+    return lista[indiceEscolhido - 1];
+  }
+
+  const servicoEncontrado = lista.find(
     (servico) => normalizarTexto(servico) === texto
   );
 
@@ -548,17 +568,24 @@ async function handleIncomingMessage(msg) {
   if (session.step === "agendar_nome") {
     session.nome = textoOriginal;
     session.telefone = telefoneDoChat(msg.from);
+    session.servicosDisponiveis = await obterServicosDisponiveis();
     session.step = "agendar_servico";
     await typing();
     await client.sendMessage(
       msg.from,
-      `Qual servico deseja?\n1 . ${servicos[0]}\n2 . ${servicos[1]}\n3 . ${servicos[2]}`
+      `Qual servico deseja?\n${session.servicosDisponiveis
+        .map((servico, index) => `${index + 1} . ${servico}`)
+        .join("\n")}`
     );
     return;
   }
 
   if (session.step === "agendar_servico") {
-    session.servico = mapearServico(texto, textoOriginal);
+    session.servico = mapearServico(
+      texto,
+      textoOriginal,
+      session.servicosDisponiveis
+    );
     const payload = {
       barbeariaId: getBarbeariaId(),
       nome: session.nome,

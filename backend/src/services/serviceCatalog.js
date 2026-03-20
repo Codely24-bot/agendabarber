@@ -1,0 +1,42 @@
+import { query } from "../db.js";
+
+const DEFAULT_BARBERSHOP_ID = "default";
+
+const DEFAULT_SERVICES = [
+  { nome: "Corte", duracao: 60, preco: 35 },
+  { nome: "Barba", duracao: 45, preco: 25 },
+  { nome: "Corte + Barba", duracao: 90, preco: 55 },
+  { nome: "Pintura", duracao: 60, preco: 40 },
+  { nome: "Sobrancelha", duracao: 30, preco: 15 }
+];
+
+export async function ensureDefaultServices(barbeariaId = DEFAULT_BARBERSHOP_ID) {
+  const existing = await query(
+    `
+      SELECT COUNT(*)::int AS total
+      FROM servicos
+      WHERE barbearia_id = $1
+    `,
+    [barbeariaId]
+  );
+
+  if (existing.rows[0]?.total > 0) {
+    return;
+  }
+
+  await Promise.all(
+    DEFAULT_SERVICES.map((service) =>
+      query(
+        `
+          INSERT INTO servicos (barbearia_id, nome, duracao, preco)
+          VALUES ($1, $2, $3, $4)
+        `,
+        [barbeariaId, service.nome, service.duracao, service.preco]
+      )
+    )
+  );
+}
+
+export function getDefaultServices() {
+  return DEFAULT_SERVICES;
+}
