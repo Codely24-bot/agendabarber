@@ -10,6 +10,7 @@ import relatoriosRoutes from "./routes/relatorios.js";
 import { startReminders } from "./services/reminders.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import servicosRoutes from "./routes/servicos.js";
+import assinaturasRoutes from "./routes/assinaturas.js";
 import { ensureDefaultServices } from "./services/serviceCatalog.js";
 import {
   checkDatabaseConnection,
@@ -61,6 +62,7 @@ app.use(horariosRoutes);
 app.use(agendamentosRoutes);
 app.use(relatoriosRoutes);
 app.use(servicosRoutes);
+app.use(assinaturasRoutes);
 
 function registerDisabledChatbotRoutes(application) {
   const payload = {
@@ -134,6 +136,7 @@ function registerFrontendRoutes(application) {
       req.path.startsWith("/agendamentos") ||
       req.path.startsWith("/relatorios") ||
       req.path.startsWith("/servicos") ||
+      req.path.startsWith("/assinaturas") ||
       req.path.startsWith("/chatbot") ||
       req.path.startsWith("/webhook") ||
       req.path === "/health" ||

@@ -8,6 +8,7 @@ function getToday() {
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
+  const [subscriptionSummary, setSubscriptionSummary] = useState(null);
   const [freeSlots, setFreeSlots] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [error, setError] = useState("");
@@ -18,13 +19,15 @@ export default function Dashboard() {
       setError("");
 
       try {
-        const [resumo, agendamentos, horariosDisponiveis] = await Promise.all([
+        const [resumo, agendamentos, horariosDisponiveis, assinaturas] = await Promise.all([
           apiFetch(`/relatorios/resumo?data=${encodeURIComponent(today)}`),
           apiFetch(`/agendamentos?data=${encodeURIComponent(today)}`),
-          apiFetch(`/horarios-disponiveis?data=${encodeURIComponent(today)}`)
+          apiFetch(`/horarios-disponiveis?data=${encodeURIComponent(today)}`),
+          apiFetch("/assinaturas/resumo")
         ]);
 
         setSummary(resumo);
+        setSubscriptionSummary(assinaturas);
         setFreeSlots(horariosDisponiveis.length);
         setTotalClients(new Set(agendamentos.map((item) => item.telefone)).size);
       } catch (err) {
@@ -73,6 +76,113 @@ export default function Dashboard() {
           <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
             <p className="text-sm text-ink/60">Concluidos</p>
             <p className="font-medium mt-2">{summary?.concluidos || 0}</p>
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
+        <div className="glass rounded-3xl p-8 shadow-soft">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-display text-xl">Assinaturas ativas</h3>
+              <p className="text-sm text-ink/60 mt-2">
+                Resumo das mensalidades e recorrencia do caixa.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/70 border border-ink/10 px-4 py-3 text-right">
+              <p className="text-xs uppercase tracking-[0.2em] text-ink/50">
+                Receita recorrente
+              </p>
+              <p className="font-display text-xl">
+                R$ {Number(subscriptionSummary?.receita_recorrente || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4 mt-6">
+            <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
+              <p className="text-sm text-ink/60">Assinantes ativos</p>
+              <p className="font-medium mt-2">{subscriptionSummary?.total_ativos || 0}</p>
+            </div>
+            <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
+              <p className="text-sm text-ink/60">Pagamentos em dia</p>
+              <p className="font-medium mt-2">
+                {subscriptionSummary?.pagamentos_em_dia || 0}
+              </p>
+            </div>
+            <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
+              <p className="text-sm text-ink/60">Pendentes</p>
+              <p className="font-medium mt-2">
+                {subscriptionSummary?.pagamentos_pendentes || 0}
+              </p>
+            </div>
+            <div className="bg-white/60 rounded-2xl p-5 border border-ink/5">
+              <p className="text-sm text-ink/60">Atrasados</p>
+              <p className="font-medium mt-2">
+                {subscriptionSummary?.pagamentos_atrasados || 0}
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-ink/60">
+                  <th className="py-3">Cliente</th>
+                  <th className="py-3">Plano</th>
+                  <th className="py-3">Vencimento</th>
+                  <th className="py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(subscriptionSummary?.vencimentos_proximos || []).map((item) => (
+                  <tr key={item.id} className="border-t border-ink/5">
+                    <td className="py-4">
+                      <p>{item.nome}</p>
+                      <p className="text-xs text-ink/50">{item.telefone}</p>
+                    </td>
+                    <td className="py-4">{item.plano_nome}</td>
+                    <td className="py-4">{String(item.data_vencimento).slice(0, 10)}</td>
+                    <td className="py-4">
+                      <span className="px-3 py-1 rounded-full bg-mint/40 text-xs">
+                        {item.status_pagamento}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!subscriptionSummary?.vencimentos_proximos?.length ? (
+              <p className="text-sm text-ink/60 mt-4">
+                Nenhum assinante cadastrado ainda.
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="glass rounded-3xl p-8 shadow-soft">
+          <h3 className="font-display text-xl">Ultimos pagamentos</h3>
+          <div className="mt-6 flex flex-col gap-4">
+            {(subscriptionSummary?.ultimos_pagamentos || []).map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl bg-white/60 border border-ink/5 px-5 py-4"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{item.cliente_nome}</p>
+                    <p className="text-xs text-ink/50">{item.competencia}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">
+                      R$ {Number(item.valor || 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-ink/50">
+                      {String(item.data_pagamento).slice(0, 10)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!subscriptionSummary?.ultimos_pagamentos?.length ? (
+              <p className="text-sm text-ink/60">Nenhum pagamento registrado ainda.</p>
+            ) : null}
           </div>
         </div>
       </div>
