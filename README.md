@@ -27,6 +27,11 @@ O repositório foi preparado para deploy pelo root no Railway.
 - `CHATBOT_WEBHOOK_URL`: opcional, URL do webhook do chatbot
 - `CHATBOT_ENABLED`: `false` por padrao no Railway
 
+Arquivos de exemplo para deploy:
+
+- `.env.railway.app.example`: servico principal no Railway
+- `.env.railway.chatbot.example`: chatbot WhatsApp em servico separado e opcional
+
 ### Observacoes de deploy
 
 - O frontend e compilado no build e servido pelo backend em producao.
