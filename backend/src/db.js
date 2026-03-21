@@ -3,11 +3,12 @@ import dotenv from "dotenv";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getDatabaseUrl } from "./config.js";
 
 dotenv.config();
 
 const { Pool } = pg;
-const connectionString = process.env.DATABASE_URL;
+const connectionString = getDatabaseUrl();
 const requireSsl =
   process.env.DATABASE_SSL === "true" ||
   process.env.DATABASE_REQUIRE_SSL === "true" ||
@@ -15,6 +16,9 @@ const requireSsl =
 
 export const pool = new Pool({
   connectionString,
+  max: Number(process.env.DATABASE_POOL_MAX || 10),
+  idleTimeoutMillis: Number(process.env.DATABASE_IDLE_TIMEOUT_MS || 30000),
+  connectionTimeoutMillis: Number(process.env.DATABASE_CONNECTION_TIMEOUT_MS || 15000),
   ssl: requireSsl
     ? {
         rejectUnauthorized: false
@@ -61,6 +65,7 @@ export async function initializeDatabase() {
   const sql = await fs.readFile(schemaPath, "utf8");
 
   try {
+    await pool.query("SELECT 1");
     await pool.query(sql);
     initialized = true;
     databaseReady = true;

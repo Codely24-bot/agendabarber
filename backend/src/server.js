@@ -16,7 +16,12 @@ import {
   getDatabaseStatus,
   initializeDatabase
 } from "./db.js";
-import { DEFAULT_BARBERSHOP_ID } from "./config.js";
+import {
+  DEFAULT_BARBERSHOP_ID,
+  getChatbotEnabled,
+  getRuntimeSummary,
+  validateRuntimeConfig
+} from "./config.js";
 
 dotenv.config();
 
@@ -24,7 +29,7 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
-const chatbotEnabled = process.env.CHATBOT_ENABLED === "true";
+const chatbotEnabled = getChatbotEnabled();
 
 app.use(cors());
 app.use(express.json());
@@ -139,6 +144,21 @@ function registerDisabledChatbotRoutes(application) {
 }
 
 async function bootstrap() {
+  const validation = validateRuntimeConfig();
+  const runtimeSummary = getRuntimeSummary();
+
+  validation.warnings.forEach((warning) => {
+    console.warn("Aviso de configuracao:", warning);
+  });
+
+  if (!validation.valid) {
+    validation.errors.forEach((error) => {
+      console.error("Erro de configuracao:", error);
+    });
+    throw new Error("Configuracao invalida para inicializar o backend.");
+  }
+
+  console.log("Resumo de inicializacao:", runtimeSummary);
   await initializeDatabase();
   await ensureDefaultServices(DEFAULT_BARBERSHOP_ID);
   startReminders();
