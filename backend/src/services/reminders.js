@@ -1,24 +1,30 @@
 import cron from "node-cron";
-import { query } from "../db.js";
-import { sendChatbotConfirmation } from "../integrations/chatbotAdapter.js";
+import { sendChatbotTextMessage } from "../integrations/chatbotAdapter.js";
+import {
+  listPendingReminders,
+  markReminderError,
+  markReminderSent
+} from "./reminderScheduler.js";
 
 export function startReminders() {
-  cron.schedule("0 * * * *", async () => {
-    const result = await query(
-      `
-        SELECT *
-        FROM agendamentos
-        WHERE status = 'confirmado'
-          AND data = CURRENT_DATE
-          AND hora = to_char((CURRENT_TIME + interval '2 hours')::time, 'HH24:MI')
-      `
-    );
+  cron.schedule("*/5 * * * *", async () => {
+    const reminders = await listPendingReminders(50);
 
-    for (const agendamento of result.rows) {
-      await sendChatbotConfirmation({
-        ...agendamento,
-        lembrete: true
-      });
+    for (const reminder of reminders) {
+      try {
+        const response = await sendChatbotTextMessage({
+          telefone: reminder.telefone,
+          texto: reminder.mensagem
+        });
+
+        if (response?.ok || response?.skipped) {
+          await markReminderSent(reminder.id);
+        } else {
+          await markReminderError(reminder.id, "Falha ao enviar lembrete pelo webhook.");
+        }
+      } catch (error) {
+        await markReminderError(reminder.id, error.message || "Erro desconhecido");
+      }
     }
   });
 }

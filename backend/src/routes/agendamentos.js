@@ -9,6 +9,10 @@ import {
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ensureDefaultServices } from "../services/serviceCatalog.js";
 import { DEFAULT_BARBERSHOP_ID } from "../config.js";
+import {
+  cancelAppointmentReminders,
+  scheduleAppointmentReminders
+} from "../services/reminderScheduler.js";
 
 const router = express.Router();
 
@@ -20,6 +24,12 @@ const agendarSchema = z.object({
   hora: z.string(),
   servico: z.string()
 });
+
+function asExecutor(client) {
+  return {
+    query: (text, params) => client.query(text, params)
+  };
+}
 
 async function ensureServiceExists(client, servico, barbeariaId) {
   const serviceResult = await client.query(
@@ -43,8 +53,8 @@ router.post("/agendar", asyncHandler(async (req, res) => {
   }
 
   const { barbeariaId, nome, telefone, data, hora, servico } = parsed.data;
-
   const client = await pool.connect();
+
   try {
     await client.query("BEGIN");
     const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
@@ -100,13 +110,16 @@ router.post("/agendar", asyncHandler(async (req, res) => {
       [data, hora, currentBarbershop]
     );
 
-    await client.query("COMMIT");
     const agendamento = inserted.rows[0];
+    await scheduleAppointmentReminders(asExecutor(client), agendamento);
+    await client.query("COMMIT");
+
     try {
       await sendChatbotConfirmation(agendamento);
     } catch (error) {
       // Falha de webhook nao deve quebrar o agendamento.
     }
+
     return res.status(201).json(agendamento);
   } catch (error) {
     await client.query("ROLLBACK");
@@ -233,8 +246,16 @@ router.put("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) => {
       [status || null, servico || null, data || null, hora || null, id]
     );
 
+    const updatedAppointment = result.rows[0];
+
+    if (updatedAppointment.status === "cancelado") {
+      await cancelAppointmentReminders(asExecutor(client), id);
+    } else {
+      await scheduleAppointmentReminders(asExecutor(client), updatedAppointment);
+    }
+
     await client.query("COMMIT");
-    return res.json(result.rows[0]);
+    return res.json(updatedAppointment);
   } catch (error) {
     await client.query("ROLLBACK");
     return res.status(500).json({ error: "Falha ao atualizar agendamento" });
@@ -276,6 +297,7 @@ router.delete("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) =>
       [agendamento.data, agendamento.hora, agendamento.barbearia_id]
     );
 
+    await cancelAppointmentReminders(asExecutor(client), id);
     await client.query("COMMIT");
     return res.json(agendamento);
   } catch (error) {

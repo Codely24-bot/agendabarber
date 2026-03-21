@@ -28,7 +28,17 @@ export async function sendChatbotCompletionThanks(agendamento) {
     type: "agendamento_concluido",
     data: {
       telefone: agendamento.telefone,
-      texto: `🙏 Agradecemos, ${agendamento.nome}, pela confianca em nosso atendimento. Foi um prazer recebe-lo(a) na ${process.env.BARBEARIA_NOME || "barbearia"} ✂️ Esperamos ve-lo(a) novamente em breve.`
+      texto: `Agradecemos, ${agendamento.nome}, pela confianca em nosso atendimento. Foi um prazer recebe-lo(a) na ${process.env.BARBEARIA_NOME || "barbearia"}. Esperamos ve-lo(a) novamente em breve.`
+    }
+  });
+}
+
+export async function sendChatbotTextMessage({ telefone, texto }) {
+  return sendWebhook({
+    type: "mensagem_customizada",
+    data: {
+      telefone,
+      texto
     }
   });
 }

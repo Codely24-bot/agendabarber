@@ -4,6 +4,10 @@ import { pool, query } from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { DEFAULT_BARBERSHOP_ID } from "../config.js";
+import {
+  buildNextDueDate,
+  scheduleSubscriptionReminders
+} from "../services/reminderScheduler.js";
 
 const router = express.Router();
 
@@ -22,9 +26,7 @@ const subscriberSchema = z.object({
   telefone: z.string().trim().min(8, "Telefone invalido"),
   dataAdesao: z.string().optional(),
   dataVencimento: z.string().optional(),
-  statusPagamento: z
-    .enum(["pago", "pendente", "atrasado", "cancelado"])
-    .optional(),
+  statusPagamento: z.enum(["pago", "pendente", "atrasado", "cancelado"]).optional(),
   observacoes: z.string().optional()
 });
 
@@ -42,6 +44,12 @@ const usageSchema = z.object({
   quantidade: z.coerce.number().int().positive("Quantidade invalida").optional(),
   dataConsumo: z.string().optional()
 });
+
+function asExecutor(client) {
+  return {
+    query: (text, params) => client.query(text, params)
+  };
+}
 
 async function ensureDefaultPlans(barbeariaId = DEFAULT_BARBERSHOP_ID) {
   const existing = await query(
@@ -286,17 +294,7 @@ router.post("/assinaturas/clientes", requireAdmin, asyncHandler(async (req, res)
     return res.status(400).json({ error: "Dados invalidos", details: parsed.error.flatten() });
   }
 
-  const {
-    barbeariaId,
-    planoId,
-    nome,
-    telefone,
-    dataAdesao,
-    dataVencimento,
-    statusPagamento,
-    observacoes
-  } = parsed.data;
-
+  const { barbeariaId, planoId, nome, telefone, dataAdesao, dataVencimento, statusPagamento, observacoes } = parsed.data;
   const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
   const plan = await getPlanById(planoId, currentBarbershop);
 
@@ -308,42 +306,21 @@ router.post("/assinaturas/clientes", requireAdmin, asyncHandler(async (req, res)
   const result = await query(
     `
       INSERT INTO clientes_assinatura
-        (
-          barbearia_id,
-          plano_id,
-          nome,
-          telefone,
-          data_adesao,
-          data_vencimento,
-          status_pagamento,
-          ativo,
-          observacoes
-        )
+        (barbearia_id, plano_id, nome, telefone, data_adesao, data_vencimento, status_pagamento, ativo, observacoes)
       VALUES
-        (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5::date,
-          COALESCE($6::date, ($5::date + make_interval(days => $7))),
-          $8,
-          true,
-          $9
-        )
+        ($1, $2, $3, $4, $5::date, COALESCE($6::date, ($5::date + make_interval(days => $7))), $8, true, $9)
       RETURNING *
     `,
-    [
-      currentBarbershop,
-      planoId,
-      nome,
-      telefone,
-      createdAt,
-      dataVencimento || null,
-      plan.validade_dias,
-      statusPagamento || "pendente",
-      observacoes || null
-    ]
+    [currentBarbershop, planoId, nome, telefone, createdAt, dataVencimento || null, plan.validade_dias, statusPagamento || "pendente", observacoes || null]
+  );
+
+  await scheduleSubscriptionReminders(
+    { query },
+    {
+      ...result.rows[0],
+      barbearia_id: currentBarbershop,
+      plano_nome: plan.nome
+    }
   );
 
   return res.status(201).json(result.rows[0]);
@@ -370,14 +347,7 @@ router.post("/assinaturas/clientes/:id/pagamentos", requireAdmin, asyncHandler(a
     const paymentDate = parsed.data.dataPagamento || new Date().toISOString().slice(0, 10);
     const paymentStatus = parsed.data.status || "pago";
     const amount = parsed.data.valor || subscriber.plano_valor;
-    const nextDueDate =
-      parsed.data.proximoVencimento ||
-      new Date(
-        new Date(`${paymentDate}T00:00:00`).getTime() +
-          Number(subscriber.validade_dias) * 24 * 60 * 60 * 1000
-      )
-        .toISOString()
-        .slice(0, 10);
+    const nextDueDate = parsed.data.proximoVencimento || buildNextDueDate(paymentDate, subscriber.validade_dias);
 
     const paymentResult = await client.query(
       `
@@ -386,15 +356,7 @@ router.post("/assinaturas/clientes/:id/pagamentos", requireAdmin, asyncHandler(a
         VALUES ($1, $2, $3, $4, $5::date, $6, $7)
         RETURNING *
       `,
-      [
-        id,
-        subscriber.barbearia_id,
-        amount,
-        parsed.data.competencia,
-        paymentDate,
-        paymentStatus,
-        parsed.data.metodo || "manual"
-      ]
+      [id, subscriber.barbearia_id, amount, parsed.data.competencia, paymentDate, paymentStatus, parsed.data.metodo || "manual"]
     );
 
     await client.query(
@@ -405,6 +367,14 @@ router.post("/assinaturas/clientes/:id/pagamentos", requireAdmin, asyncHandler(a
         WHERE id = $3
       `,
       [paymentStatus === "pago" ? "pago" : paymentStatus, nextDueDate, id]
+    );
+
+    await scheduleSubscriptionReminders(
+      asExecutor(client),
+      {
+        ...subscriber,
+        data_vencimento: nextDueDate
+      }
     );
 
     await client.query("COMMIT");
@@ -443,13 +413,7 @@ router.post("/assinaturas/clientes/:id/consumos", requireAdmin, asyncHandler(asy
         VALUES ($1, $2, $3::date, $4, $5)
         RETURNING *
       `,
-      [
-        id,
-        subscriber.barbearia_id,
-        parsed.data.dataConsumo || new Date().toISOString().slice(0, 10),
-        parsed.data.descricao || "Corte",
-        parsed.data.quantidade || 1
-      ]
+      [id, subscriber.barbearia_id, parsed.data.dataConsumo || new Date().toISOString().slice(0, 10), parsed.data.descricao || "Corte", parsed.data.quantidade || 1]
     );
 
     return res.status(201).json(result.rows[0]);
