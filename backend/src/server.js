@@ -11,6 +11,12 @@ import { startReminders } from "./services/reminders.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import servicosRoutes from "./routes/servicos.js";
 import { ensureDefaultServices } from "./services/serviceCatalog.js";
+import {
+  checkDatabaseConnection,
+  getDatabaseStatus,
+  initializeDatabase
+} from "./db.js";
+import { DEFAULT_BARBERSHOP_ID } from "./config.js";
 
 dotenv.config();
 
@@ -23,8 +29,26 @@ const chatbotEnabled = process.env.CHATBOT_ENABLED === "true";
 app.use(cors());
 app.use(express.json());
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
+app.get("/health", async (req, res) => {
+  const status = getDatabaseStatus();
+
+  try {
+    await checkDatabaseConnection();
+  } catch (error) {
+    return res.status(503).json({
+      ok: false,
+      database: getDatabaseStatus()
+    });
+  }
+
+  return res.json({
+    ok: true,
+    database: {
+      ...status,
+      ready: true,
+      error: null
+    }
+  });
 });
 
 app.use(adminRoutes);
@@ -114,12 +138,11 @@ function registerDisabledChatbotRoutes(application) {
   });
 }
 
-startReminders();
-ensureDefaultServices().catch((error) => {
-  console.error("Falha ao semear servicos padrao:", error);
-});
-
 async function bootstrap() {
+  await initializeDatabase();
+  await ensureDefaultServices(DEFAULT_BARBERSHOP_ID);
+  startReminders();
+
   if (chatbotEnabled) {
     try {
       const chatbotModule = await import("../../chatbot/robo.js");
@@ -140,6 +163,7 @@ async function bootstrap() {
   app.listen(port, () => {
     console.log(`API rodando na porta ${port}`);
     console.log(`Chatbot integrado ${chatbotEnabled ? "habilitado" : "desabilitado"}.`);
+    console.log(`Banco conectado e schema validado para a barbearia ${DEFAULT_BARBERSHOP_ID}.`);
   });
 }
 

@@ -1,6 +1,8 @@
 import { query } from "../db.js";
-
-const DEFAULT_BARBERSHOP_ID = "default";
+import {
+  DEFAULT_BARBERSHOP_ID,
+  DEFAULT_BARBERSHOP_NAME
+} from "../config.js";
 
 const DEFAULT_SERVICES = [
   { nome: "Corte", duracao: 60, preco: 35 },
@@ -11,6 +13,15 @@ const DEFAULT_SERVICES = [
 ];
 
 export async function ensureDefaultServices(barbeariaId = DEFAULT_BARBERSHOP_ID) {
+  await query(
+    `
+      INSERT INTO barbearias (id, nome)
+      VALUES ($1, $2)
+      ON CONFLICT (id) DO NOTHING
+    `,
+    [barbeariaId, DEFAULT_BARBERSHOP_NAME]
+  );
+
   const existing = await query(
     `
       SELECT COUNT(*)::int AS total

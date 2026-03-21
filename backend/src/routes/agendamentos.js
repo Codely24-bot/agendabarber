@@ -8,6 +8,7 @@ import {
 } from "../integrations/chatbotAdapter.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ensureDefaultServices } from "../services/serviceCatalog.js";
+import { DEFAULT_BARBERSHOP_ID } from "../config.js";
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.post("/agendar", asyncHandler(async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const currentBarbershop = barbeariaId || "default";
+    const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
     await ensureDefaultServices(currentBarbershop);
     const serviceExists = await ensureServiceExists(client, servico, currentBarbershop);
 

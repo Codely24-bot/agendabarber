@@ -3,6 +3,7 @@ import { z } from "zod";
 import { query } from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { DEFAULT_BARBERSHOP_ID } from "../config.js";
 
 const router = express.Router();
 const WEEKLY_SLOTS = [
@@ -169,7 +170,7 @@ router.post("/horarios", requireAdmin, asyncHandler(async (req, res) => {
       )
       RETURNING *
     `,
-    [barbeariaId || "default", data, hora]
+    [barbeariaId || DEFAULT_BARBERSHOP_ID, data, hora]
   );
 
   if (!result.rows.length) {
@@ -204,7 +205,7 @@ router.post("/horarios/gerar-semana", requireAdmin, asyncHandler(async (req, res
           )
           RETURNING *
         `,
-        [barbeariaId || "default", data, hora]
+        [barbeariaId || DEFAULT_BARBERSHOP_ID, data, hora]
       );
 
       if (result.rows[0]) {

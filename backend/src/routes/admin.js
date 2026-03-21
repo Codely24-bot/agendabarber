@@ -1,15 +1,16 @@
 import express from "express";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { getAdminCredentials } from "../config.js";
 
 const router = express.Router();
 
 router.post("/auth/login", (req, res) => {
   const { username, password } = req.body || {};
-  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-    return res.json({ token: process.env.ADMIN_PASS });
+  const admin = getAdminCredentials();
+
+  if (username === admin.username && password === admin.password) {
+    return res.json({ token: admin.password });
   }
+
   return res.status(401).json({ error: "Credenciais invalidas" });
 });
 
