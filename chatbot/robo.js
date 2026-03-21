@@ -78,7 +78,7 @@ const formatarDataBr = (data = "") => {
 };
 
 const menuPrincipal = () =>
-  `👋 Seja bem-vindo(a) a ${getBarbeariaNome()}.\n\n1 . 📅 Agendar horario\n2 . ❌ Cancelar agendamento\n3 . 💬 Falar com o proprietario`;
+  `Ola! Seja bem-vindo(a) a ${getBarbeariaNome()}\n\n1 . Agendar horario\n2 . Cancelar agendamento\n3 . Me tornar assinante\n4 . Falar com atendente`;
 
 const resetSession = (session) => {
   session.step = "menu";
@@ -87,6 +87,7 @@ const resetSession = (session) => {
   session.nome = null;
   session.telefone = null;
   session.servico = null;
+  session.diaVencimentoAssinatura = null;
   session.servicosDisponiveis = null;
   session.diasDisponiveis = null;
   session.horariosDisponiveis = null;
@@ -481,20 +482,29 @@ async function handleIncomingMessage(msg) {
         `🗓️ Selecione o numero do agendamento que deseja cancelar:\n\n${agendamentos
           .map(
             (agendamento, index) =>
-              `${index + 1} . ${agendamento.data} as ${agendamento.hora} - ${agendamento.servico}`
+              `${index + 1} . ${formatarDataBr(agendamento.data)} as ${agendamento.hora} - ${agendamento.servico}`
           )
           .join("\n")}`
       );
       return;
     }
-
     if (texto === "3") {
+      session.step = "assinatura_vencimento";
+      await typing();
+      await client.sendMessage(
+        msg.from,
+        `Plano Assinatura Mensal\n\n- 1 corte por semana via agendamentos\n- Valor mensal de R$ 159,99\n- Voce escolhe o melhor dia do vencimento\n\nSe quiser seguir, me responda com um numero de 1 a 28 informando o dia do vencimento que prefere.`
+      );
+      return;
+    }
+
+    if (texto === "4") {
       pausasProprietario.set(msg.from, agora + PAUSA_PROPRIETARIO_MS);
       resetSession(session);
       await typing();
       await client.sendMessage(
         msg.from,
-        "🤝 Perfeito. O atendimento automatico sera pausado por 5 minutos para que o proprietario possa assumir esta conversa."
+        "Perfeito. O atendimento automatico sera pausado por 5 minutos para que um atendente possa assumir esta conversa."
       );
       return;
     }
@@ -603,6 +613,29 @@ async function handleIncomingMessage(msg) {
       `✅ Agendamento confirmado para ${formatarDataBr(agendamento.data)} as ${agendamento.hora}.\n🙏 Agradecemos pelas informacoes. Seu horario foi reservado com sucesso.`
     );
     await enviarMenu();
+    return;
+  }
+
+  if (session.step === "assinatura_vencimento") {
+    const diaEscolhido = Number(texto);
+
+    if (!Number.isInteger(diaEscolhido) || diaEscolhido < 1 || diaEscolhido > 28) {
+      await typing();
+      await client.sendMessage(
+        msg.from,
+        "Opcao invalida. Me envie um numero de 1 a 28 para informar o dia do vencimento que voce prefere."
+      );
+      return;
+    }
+
+    session.diaVencimentoAssinatura = diaEscolhido;
+    pausasProprietario.set(msg.from, agora + PAUSA_PROPRIETARIO_MS);
+    resetSession(session);
+    await typing();
+    await client.sendMessage(
+      msg.from,
+      `Perfeito! Anotei seu interesse na Assinatura Mensal de R$ 159,99 com 1 corte por semana via agendamentos.\n\nDia de vencimento desejado: ${diaEscolhido}\n\nAgora vou pausar o atendimento automatico por 5 minutos para um atendente continuar seu cadastro.`
+    );
     return;
   }
 

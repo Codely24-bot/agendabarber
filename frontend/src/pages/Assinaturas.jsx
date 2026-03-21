@@ -2,13 +2,6 @@ import { useEffect, useState } from "react";
 import Topbar from "../components/Topbar.jsx";
 import { apiFetch } from "../api.js";
 
-const defaultPlanForm = {
-  nome: "",
-  valor: "",
-  cortesInclusos: "4",
-  validadeDias: "30"
-};
-
 const defaultSubscriberForm = {
   nome: "",
   telefone: "",
@@ -25,18 +18,18 @@ function formatCurrency(value) {
 }
 
 function formatDate(value) {
-  return String(value || "").slice(0, 10);
+  const [year, month, day] = String(value || "").slice(0, 10).split("-");
+  if (!year || !month || !day) return "";
+  return `${day}/${month}/${year}`;
 }
 
 export default function Assinaturas() {
   const [summary, setSummary] = useState(null);
-  const [plans, setPlans] = useState([]);
+  const [plan, setPlan] = useState(null);
   const [clients, setClients] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [planForm, setPlanForm] = useState(defaultPlanForm);
   const [subscriberForm, setSubscriberForm] = useState(defaultSubscriberForm);
   const [loading, setLoading] = useState(true);
-  const [savingPlan, setSavingPlan] = useState(false);
   const [savingSubscriber, setSavingSubscriber] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -56,12 +49,13 @@ export default function Assinaturas() {
         )
       ]);
 
+      const activePlan = plansResponse[0] || null;
       setSummary(summaryResponse);
-      setPlans(plansResponse);
+      setPlan(activePlan);
       setClients(clientsResponse);
       setSubscriberForm((current) => ({
         ...current,
-        planoId: current.planoId || String(plansResponse[0]?.id || "")
+        planoId: activePlan ? String(activePlan.id) : ""
       }));
     } catch (err) {
       setError(err.message);
@@ -73,32 +67,6 @@ export default function Assinaturas() {
   useEffect(() => {
     loadData(statusFilter);
   }, [statusFilter]);
-
-  async function handleCreatePlan(event) {
-    event.preventDefault();
-    setSavingPlan(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      await apiFetch("/assinaturas/planos", {
-        method: "POST",
-        body: JSON.stringify({
-          nome: planForm.nome,
-          valor: Number(planForm.valor),
-          cortesInclusos: Number(planForm.cortesInclusos),
-          validadeDias: Number(planForm.validadeDias)
-        })
-      });
-      setPlanForm(defaultPlanForm);
-      setSuccess("Plano de assinatura cadastrado com sucesso.");
-      await loadData(statusFilter);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSavingPlan(false);
-    }
-  }
 
   async function handleCreateSubscriber(event) {
     event.preventDefault();
@@ -134,10 +102,7 @@ export default function Assinaturas() {
     const competencia = window.prompt("Competencia do pagamento (ex.: 2026-03):");
     if (!competencia) return;
 
-    const valor = window.prompt(
-      "Valor pago:",
-      String(client.plano_valor || "")
-    );
+    const valor = window.prompt("Valor pago:", String(client.plano_valor || ""));
     if (!valor) return;
 
     setError("");
@@ -203,7 +168,7 @@ export default function Assinaturas() {
           </div>
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="glass rounded-3xl p-8 shadow-soft">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -234,7 +199,7 @@ export default function Assinaturas() {
                 <thead>
                   <tr className="text-left text-ink/60">
                     <th className="py-3">Cliente</th>
-                    <th className="py-3">Plano</th>
+                    <th className="py-3">Assinatura</th>
                     <th className="py-3">Vencimento</th>
                     <th className="py-3">Pagamento</th>
                     <th className="py-3">Cortes</th>
@@ -289,133 +254,70 @@ export default function Assinaturas() {
             </div>
           ) : null}
         </div>
-        <div className="flex flex-col gap-6">
-          <div className="glass rounded-3xl p-8 shadow-soft">
-            <h3 className="font-display text-xl">Novo plano</h3>
-            <form className="flex flex-col gap-4 mt-6" onSubmit={handleCreatePlan}>
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                placeholder="Nome do plano"
-                value={planForm.nome}
-                onChange={(event) =>
-                  setPlanForm((current) => ({ ...current, nome: event.target.value }))
-                }
-              />
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="Valor mensal"
-                value={planForm.valor}
-                onChange={(event) =>
-                  setPlanForm((current) => ({ ...current, valor: event.target.value }))
-                }
-              />
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                type="number"
-                min="1"
-                placeholder="Cortes inclusos"
-                value={planForm.cortesInclusos}
-                onChange={(event) =>
-                  setPlanForm((current) => ({
-                    ...current,
-                    cortesInclusos: event.target.value
-                  }))
-                }
-              />
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                type="number"
-                min="1"
-                placeholder="Validade em dias"
-                value={planForm.validadeDias}
-                onChange={(event) =>
-                  setPlanForm((current) => ({
-                    ...current,
-                    validadeDias: event.target.value
-                  }))
-                }
-              />
-              <button
-                className="bg-ink text-cream rounded-2xl py-3 text-sm disabled:opacity-60"
-                disabled={savingPlan}
-              >
-                {savingPlan ? "Salvando..." : "Cadastrar plano"}
-              </button>
-            </form>
+        <div className="glass rounded-3xl p-8 shadow-soft">
+          <h3 className="font-display text-xl">Novo assinante</h3>
+          <div className="mt-4 rounded-2xl bg-white/60 border border-ink/5 px-5 py-4">
+            <p className="text-sm text-ink/60">Plano unico da assinatura</p>
+            <p className="font-display text-2xl mt-2">
+              {plan ? `${plan.nome} - ${formatCurrency(plan.valor)}` : "R$ 159,99"}
+            </p>
+            <p className="text-sm text-ink/50 mt-2">
+              {plan ? `${plan.cortes_inclusos} cortes inclusos a cada ${plan.validade_dias} dias.` : "Assinatura mensal fixa."}
+            </p>
           </div>
-          <div className="glass rounded-3xl p-8 shadow-soft">
-            <h3 className="font-display text-xl">Novo assinante</h3>
-            <form className="flex flex-col gap-4 mt-6" onSubmit={handleCreateSubscriber}>
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                placeholder="Nome do cliente"
-                value={subscriberForm.nome}
-                onChange={(event) =>
-                  setSubscriberForm((current) => ({ ...current, nome: event.target.value }))
-                }
-              />
-              <input
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                placeholder="Telefone"
-                value={subscriberForm.telefone}
-                onChange={(event) =>
-                  setSubscriberForm((current) => ({
-                    ...current,
-                    telefone: event.target.value
-                  }))
-                }
-              />
-              <select
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                value={subscriberForm.planoId}
-                onChange={(event) =>
-                  setSubscriberForm((current) => ({ ...current, planoId: event.target.value }))
-                }
-              >
-                <option value="">Selecione um plano</option>
-                {plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.nome} - {formatCurrency(plan.valor)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
-                value={subscriberForm.statusPagamento}
-                onChange={(event) =>
-                  setSubscriberForm((current) => ({
-                    ...current,
-                    statusPagamento: event.target.value
-                  }))
-                }
-              >
-                <option value="pendente">Pendente</option>
-                <option value="pago">Pago</option>
-                <option value="atrasado">Atrasado</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
-              <textarea
-                className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10 min-h-24"
-                placeholder="Observacoes"
-                value={subscriberForm.observacoes}
-                onChange={(event) =>
-                  setSubscriberForm((current) => ({
-                    ...current,
-                    observacoes: event.target.value
-                  }))
-                }
-              />
-              <button
-                className="bg-ink text-cream rounded-2xl py-3 text-sm disabled:opacity-60"
-                disabled={savingSubscriber}
-              >
-                {savingSubscriber ? "Salvando..." : "Cadastrar assinante"}
-              </button>
-            </form>
-          </div>
+          <form className="flex flex-col gap-4 mt-6" onSubmit={handleCreateSubscriber}>
+            <input
+              className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
+              placeholder="Nome do cliente"
+              value={subscriberForm.nome}
+              onChange={(event) =>
+                setSubscriberForm((current) => ({ ...current, nome: event.target.value }))
+              }
+            />
+            <input
+              className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
+              placeholder="Telefone"
+              value={subscriberForm.telefone}
+              onChange={(event) =>
+                setSubscriberForm((current) => ({
+                  ...current,
+                  telefone: event.target.value
+                }))
+              }
+            />
+            <select
+              className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10"
+              value={subscriberForm.statusPagamento}
+              onChange={(event) =>
+                setSubscriberForm((current) => ({
+                  ...current,
+                  statusPagamento: event.target.value
+                }))
+              }
+            >
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="atrasado">Atrasado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+            <textarea
+              className="px-4 py-3 rounded-2xl bg-white/70 border border-ink/10 min-h-24"
+              placeholder="Observacoes"
+              value={subscriberForm.observacoes}
+              onChange={(event) =>
+                setSubscriberForm((current) => ({
+                  ...current,
+                  observacoes: event.target.value
+                }))
+              }
+            />
+            <button
+              className="bg-ink text-cream rounded-2xl py-3 text-sm disabled:opacity-60"
+              disabled={savingSubscriber || !subscriberForm.planoId}
+            >
+              {savingSubscriber ? "Salvando..." : "Cadastrar assinante"}
+            </button>
+          </form>
         </div>
       </div>
     </section>

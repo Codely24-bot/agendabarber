@@ -36,6 +36,17 @@ function getWeekEnd(start) {
   return formatDate(end);
 }
 
+function groupByDate(horarios) {
+  return horarios.reduce((accumulator, horario) => {
+    const key = String(horario.data).slice(0, 10);
+    if (!accumulator[key]) {
+      accumulator[key] = [];
+    }
+    accumulator[key].push(horario);
+    return accumulator;
+  }, {});
+}
+
 export default function Horarios() {
   const [manualForm, setManualForm] = useState({
     data: getToday(),
@@ -47,6 +58,7 @@ export default function Horarios() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
 
   async function loadHorarios() {
     setLoading(true);
@@ -108,6 +120,31 @@ export default function Horarios() {
     }
   }
 
+  async function handleToggleAvailability(horario, disponivel) {
+    setUpdatingId(horario.id);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiFetch(`/horarios/${horario.id}/disponibilidade`, {
+        method: "PUT",
+        body: JSON.stringify({ disponivel })
+      });
+      setSuccess(
+        `Horario ${formatDateLabel(horario.data)} as ${horario.hora} marcado como ${
+          disponivel ? "disponivel" : "indisponivel"
+        }.`
+      );
+      await loadHorarios();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  const grouped = groupByDate(horarios);
+
   return (
     <section className="flex flex-col gap-10">
       <Topbar title="Gestao de horarios" subtitle="Horarios" />
@@ -117,7 +154,7 @@ export default function Horarios() {
         <div className="glass rounded-3xl p-8 shadow-soft">
           <h3 className="font-display text-xl">Agenda semanal automatica</h3>
           <p className="text-sm text-ink/60 mt-2">
-            Gere horarios de terca a sabado, das 07:00 as 19:00, com pausa de 12:00 a 14:00.
+            Gere horarios de segunda a sabado, das 07:00 as 19:00, com pausa de 12:00 a 14:00.
           </p>
           <div className="mt-6 flex flex-col gap-4">
             <label className="text-sm text-ink/70">
@@ -178,30 +215,60 @@ export default function Horarios() {
       </div>
       <div className="glass rounded-3xl p-8 shadow-soft">
         <h3 className="font-display text-xl">Horarios da semana</h3>
+        <p className="text-sm text-ink/60 mt-2">
+          Somente o admin pode marcar cada horario como disponivel ou indisponivel.
+        </p>
         {loading ? <p className="text-sm text-ink/60 mt-4">Carregando horarios...</p> : null}
         {!loading && !horarios.length ? (
           <p className="text-sm text-ink/60 mt-4">Nenhum horario encontrado para este periodo.</p>
         ) : null}
         {!loading && horarios.length ? (
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-ink/60">
-                  <th className="py-3">Data</th>
-                  <th className="py-3">Hora</th>
-                  <th className="py-3">Disponivel</th>
-                </tr>
-              </thead>
-              <tbody>
-                {horarios.map((horario) => (
-                  <tr key={`${horario.data}-${horario.hora}`} className="border-t border-ink/5">
-                    <td className="py-4">{formatDateLabel(horario.data)}</td>
-                    <td className="py-4">{horario.hora}</td>
-                    <td className="py-4">{horario.disponivel ? "Sim" : "Nao"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-6 flex flex-col gap-6">
+            {Object.entries(grouped).map(([date, items]) => (
+              <div key={date} className="rounded-3xl bg-white/45 border border-ink/5 p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className="font-display text-lg">{formatDateLabel(date)}</h4>
+                  <span className="text-xs uppercase tracking-[0.2em] text-ink/50">
+                    {items.length} horarios
+                  </span>
+                </div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {items.map((horario) => (
+                    <div
+                      key={horario.id}
+                      className="rounded-2xl bg-white/70 border border-ink/10 px-4 py-4 flex items-center justify-between gap-4"
+                    >
+                      <div>
+                        <p className="font-medium">{horario.hora}</p>
+                        <p className="text-xs text-ink/50">Controle manual do admin</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAvailability(horario, true)}
+                          disabled={updatingId === horario.id}
+                          className={`px-3 py-2 rounded-xl text-sm text-white disabled:opacity-60 ${
+                            horario.disponivel ? "bg-emerald-600" : "bg-emerald-500/70"
+                          }`}
+                        >
+                          Sim
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAvailability(horario, false)}
+                          disabled={updatingId === horario.id}
+                          className={`px-3 py-2 rounded-xl text-sm text-white disabled:opacity-60 ${
+                            !horario.disponivel ? "bg-red-600" : "bg-red-500/70"
+                          }`}
+                        >
+                          Nao
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
       </div>

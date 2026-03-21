@@ -19,12 +19,16 @@ const WEEKLY_SLOTS = [
   "18:00",
   "19:00"
 ];
-const ALLOWED_WEEK_DAYS = [2, 3, 4, 5, 6];
+const ALLOWED_WEEK_DAYS = [1, 2, 3, 4, 5, 6];
 
 const horariosSchema = z.object({
   barbeariaId: z.string().optional(),
   data: z.string(),
   hora: z.string()
+});
+
+const disponibilidadeSchema = z.object({
+  disponivel: z.boolean()
 });
 
 const gerarSemanaSchema = z.object({
@@ -219,6 +223,30 @@ router.post("/horarios/gerar-semana", requireAdmin, asyncHandler(async (req, res
     datas,
     horarios: inserted
   });
+}));
+
+router.put("/horarios/:id/disponibilidade", requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = disponibilidadeSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Dados invalidos", details: parsed.error.flatten() });
+  }
+
+  const { id } = req.params;
+  const result = await query(
+    `
+      UPDATE horarios
+      SET disponivel = $1
+      WHERE id = $2
+      RETURNING *
+    `,
+    [parsed.data.disponivel, id]
+  );
+
+  if (!result.rows.length) {
+    return res.status(404).json({ error: "Horario nao encontrado" });
+  }
+
+  return res.json(result.rows[0]);
 }));
 
 export default router;

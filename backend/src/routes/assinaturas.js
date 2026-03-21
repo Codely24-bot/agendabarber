@@ -11,14 +11,6 @@ import {
 
 const router = express.Router();
 
-const planSchema = z.object({
-  barbeariaId: z.string().optional(),
-  nome: z.string().trim().min(2, "Nome do plano e obrigatorio"),
-  valor: z.coerce.number().positive("Valor invalido"),
-  cortesInclusos: z.coerce.number().int().positive("Quantidade de cortes invalida"),
-  validadeDias: z.coerce.number().int().positive("Validade invalida").default(30)
-});
-
 const subscriberSchema = z.object({
   barbeariaId: z.string().optional(),
   planoId: z.coerce.number().int().positive("Plano invalido"),
@@ -62,26 +54,28 @@ async function ensureDefaultPlans(barbeariaId = DEFAULT_BARBERSHOP_ID) {
   );
 
   if (existing.rows[0]?.total > 0) {
+    await query(
+      `
+        UPDATE planos_assinatura
+        SET nome = 'Assinatura Mensal',
+            valor = 159.99,
+            cortes_inclusos = 4,
+            validade_dias = 30,
+            ativo = true
+        WHERE barbearia_id = $1
+      `,
+      [barbeariaId]
+    );
     return;
   }
 
-  const defaults = [
-    { nome: "Mensal Bronze", valor: 69.9, cortes: 2, validade: 30 },
-    { nome: "Mensal Silver", valor: 119.9, cortes: 4, validade: 30 },
-    { nome: "Mensal Gold", valor: 159.9, cortes: 8, validade: 30 }
-  ];
-
-  await Promise.all(
-    defaults.map((plan) =>
-      query(
-        `
-          INSERT INTO planos_assinatura
-            (barbearia_id, nome, valor, cortes_inclusos, validade_dias, ativo)
-          VALUES ($1, $2, $3, $4, $5, true)
-        `,
-        [barbeariaId, plan.nome, plan.valor, plan.cortes, plan.validade]
-      )
-    )
+  await query(
+    `
+      INSERT INTO planos_assinatura
+        (barbearia_id, nome, valor, cortes_inclusos, validade_dias, ativo)
+      VALUES ($1, 'Assinatura Mensal', 159.99, 4, 30, true)
+    `,
+    [barbeariaId]
   );
 }
 
@@ -215,28 +209,6 @@ router.get("/assinaturas/planos", requireAdmin, asyncHandler(async (req, res) =>
   );
 
   return res.json(result.rows);
-}));
-
-router.post("/assinaturas/planos", requireAdmin, asyncHandler(async (req, res) => {
-  const parsed = planSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Dados invalidos", details: parsed.error.flatten() });
-  }
-
-  const { barbeariaId, nome, valor, cortesInclusos, validadeDias } = parsed.data;
-  const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
-
-  const result = await query(
-    `
-      INSERT INTO planos_assinatura
-        (barbearia_id, nome, valor, cortes_inclusos, validade_dias, ativo)
-      VALUES ($1, $2, $3, $4, $5, true)
-      RETURNING id, barbearia_id, nome, valor, cortes_inclusos, validade_dias, ativo
-    `,
-    [currentBarbershop, nome, valor, cortesInclusos, validadeDias]
-  );
-
-  return res.status(201).json(result.rows[0]);
 }));
 
 router.get("/assinaturas/clientes", requireAdmin, asyncHandler(async (req, res) => {
