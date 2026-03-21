@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Topbar from "../components/Topbar.jsx";
 import { apiFetch } from "../api.js";
 
@@ -19,21 +19,204 @@ function formatDateLabel(date) {
   return `${day}/${month}/${year}`;
 }
 
+function getInitialForm(date, serviceName = "Corte") {
+  return {
+    nome: "",
+    telefone: "",
+    data: date,
+    hora: "07:00",
+    servico: serviceName
+  };
+}
+
+function statusBadgeClass(status) {
+  if (status === "cancelado") return "bg-rose-100 text-rose-700";
+  if (status === "concluido") return "bg-emerald-100 text-emerald-700";
+  return "bg-mint/40 text-ink";
+}
+
+function AppointmentModal({
+  type,
+  form,
+  onChange,
+  onClose,
+  onSubmit,
+  agendamento,
+  servicos,
+  saving
+}) {
+  if (!type) return null;
+
+  const isView = type === "view";
+  const isEdit = type === "edit";
+  const title = isView
+    ? "Cliente agendado"
+    : isEdit
+      ? "Editar agendamento"
+      : "Novo agendamento";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-[28px] border border-white/40 bg-[#fffdf8] p-6 shadow-[0_24px_80px_rgba(17,24,39,0.18)] md:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-ink/45">Agenda</p>
+            <h2 className="mt-2 text-3xl font-semibold text-ink">{title}</h2>
+            <p className="mt-2 text-sm text-ink/60">
+              {isView
+                ? "Consulte os dados do cliente sem sair da agenda."
+                : "Preencha os dados abaixo para salvar o agendamento."}
+            </p>
+          </div>
+          <button
+            className="rounded-full border border-ink/10 px-4 py-2 text-sm text-ink/70 transition hover:bg-ink hover:text-cream"
+            onClick={onClose}
+            type="button"
+          >
+            Fechar
+          </button>
+        </div>
+
+        {isView ? (
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <div className="rounded-3xl border border-ink/5 bg-white/75 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-ink/45">Cliente</p>
+              <h3 className="mt-3 text-2xl font-semibold text-ink">{agendamento.nome}</h3>
+              <p className="mt-2 text-sm text-ink/60">{agendamento.telefone}</p>
+            </div>
+            <div className="rounded-3xl border border-ink/5 bg-white/75 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-ink/45">Servico</p>
+              <h3 className="mt-3 text-2xl font-semibold text-ink">{agendamento.servico}</h3>
+              <p className="mt-2 text-sm text-ink/60">
+                {formatDateLabel(agendamento.data)} as {agendamento.hora}
+              </p>
+            </div>
+            <div className="rounded-3xl border border-ink/5 bg-white/75 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-ink/45">Status</p>
+              <span
+                className={`mt-3 inline-flex rounded-full px-4 py-2 text-sm font-medium ${statusBadgeClass(
+                  agendamento.status
+                )}`}
+              >
+                {agendamento.status}
+              </span>
+            </div>
+            <div className="rounded-3xl border border-ink/5 bg-white/75 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-ink/45">Resumo</p>
+              <p className="mt-3 text-sm leading-7 text-ink/70">
+                Cliente agendado para {formatDateLabel(agendamento.data)} as {agendamento.hora},
+                com servico de {agendamento.servico}.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-ink/70">Nome do cliente</span>
+              <input
+                className="rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-ink/30"
+                name="nome"
+                onChange={onChange}
+                required
+                type="text"
+                value={form.nome}
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-ink/70">Telefone com DDD</span>
+              <input
+                className="rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-ink/30"
+                name="telefone"
+                onChange={onChange}
+                required
+                type="text"
+                value={form.telefone}
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-ink/70">Data</span>
+              <input
+                className="rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-ink/30"
+                name="data"
+                onChange={onChange}
+                required
+                type="date"
+                value={form.data}
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-ink/70">Hora</span>
+              <input
+                className="rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-ink/30"
+                name="hora"
+                onChange={onChange}
+                required
+                type="time"
+                value={form.hora}
+              />
+            </label>
+            <label className="flex flex-col gap-2 md:col-span-2">
+              <span className="text-sm font-medium text-ink/70">Servico</span>
+              <select
+                className="rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-ink/30"
+                name="servico"
+                onChange={onChange}
+                value={form.servico}
+              >
+                {servicos.map((item) => (
+                  <option key={item.id ?? item.nome} value={item.nome}>
+                    {item.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-2 flex flex-wrap gap-3 md:col-span-2">
+              <button
+                className="rounded-2xl bg-ink px-5 py-3 text-sm font-medium text-cream transition hover:opacity-90"
+                disabled={saving}
+                type="submit"
+              >
+                {saving ? "Salvando..." : isEdit ? "Salvar alteracoes" : "Criar agendamento"}
+              </button>
+              <button
+                className="rounded-2xl border border-ink/10 bg-white px-5 py-3 text-sm text-ink/70 transition hover:bg-ink hover:text-cream"
+                onClick={onClose}
+                type="button"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Agenda() {
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [agendamentos, setAgendamentos] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [modalType, setModalType] = useState(null);
+  const [modalAppointment, setModalAppointment] = useState(null);
+  const [form, setForm] = useState(getInitialForm(getToday()));
 
-  async function loadAgendamentos() {
+  const defaultServiceName = useMemo(
+    () => servicos[0]?.nome || "Corte",
+    [servicos]
+  );
+
+  async function loadAgendamentos(date = selectedDate) {
     setLoading(true);
     setError("");
 
     try {
       const response = await apiFetch(
-        `/agendamentos?data=${encodeURIComponent(selectedDate)}`
+        `/agendamentos?data=${encodeURIComponent(date)}`
       );
       setAgendamentos(response);
     } catch (err) {
@@ -60,82 +243,70 @@ export default function Agenda() {
     loadServicos();
   }, []);
 
-  function getServicePromptMessage() {
-    if (!servicos.length) {
-      return "Servico:";
-    }
-
-    const options = servicos.map((item) => item.nome).join(", ");
-    return `Servico (${options}):`;
+  function closeModal() {
+    setModalType(null);
+    setModalAppointment(null);
+    setForm(getInitialForm(selectedDate, defaultServiceName));
   }
 
-  async function handleNewAppointment() {
-    const nome = window.prompt("Nome do cliente:");
-    if (!nome) return;
-
-    const telefone = window.prompt("Telefone com DDD:");
-    if (!telefone) return;
-
-    const data = window.prompt("Data do agendamento (YYYY-MM-DD):", selectedDate);
-    if (!data) return;
-
-    const hora = window.prompt("Hora do agendamento (HH:MM):", "07:00");
-    if (!hora) return;
-
-    const servico = window.prompt(
-      getServicePromptMessage(),
-      servicos[0]?.nome || "Corte"
-    );
-    if (!servico) return;
-
-    setError("");
-    setSuccess("");
-
-    try {
-      await apiFetch("/agendar", {
-        method: "POST",
-        body: JSON.stringify({
-          nome,
-          telefone,
-          data,
-          hora,
-          servico
-        })
-      });
-      setSuccess(`Agendamento criado para ${formatDateLabel(data)} as ${hora}.`);
-      setSelectedDate(data);
-      await loadAgendamentos();
-    } catch (err) {
-      setError(err.message);
-    }
+  function openNewAppointmentModal() {
+    setForm(getInitialForm(selectedDate, defaultServiceName));
+    setModalAppointment(null);
+    setModalType("create");
   }
 
-  async function handleEdit(agendamento) {
-    const data = window.prompt(
-      "Nova data do agendamento (YYYY-MM-DD):",
-      formatDate(agendamento.data)
-    );
-    if (!data) return;
+  function openEditModal(agendamento) {
+    setForm({
+      nome: agendamento.nome,
+      telefone: agendamento.telefone,
+      data: formatDate(agendamento.data),
+      hora: agendamento.hora,
+      servico: agendamento.servico
+    });
+    setModalAppointment(agendamento);
+    setModalType("edit");
+  }
 
-    const hora = window.prompt("Novo horario (HH:MM):", agendamento.hora);
-    if (!hora) return;
+  function openViewModal(agendamento) {
+    setModalAppointment(agendamento);
+    setModalType("view");
+  }
 
-    const servico = window.prompt(getServicePromptMessage(), agendamento.servico);
-    if (!servico) return;
+  function handleFormChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
 
+  async function handleModalSubmit(event) {
+    event.preventDefault();
     setError("");
     setSuccess("");
+    setSaving(true);
 
     try {
-      await apiFetch(`/agendamento/${agendamento.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ data, hora, servico })
-      });
-      setSuccess(`Agendamento ${agendamento.id} atualizado.`);
-      setSelectedDate(data);
-      await loadAgendamentos();
+      if (modalType === "create") {
+        await apiFetch("/agendar", {
+          method: "POST",
+          body: JSON.stringify(form)
+        });
+        setSuccess(`Agendamento criado para ${formatDateLabel(form.data)} as ${form.hora}.`);
+      }
+
+      if (modalType === "edit" && modalAppointment) {
+        await apiFetch(`/agendamento/${modalAppointment.id}`, {
+          method: "PUT",
+          body: JSON.stringify(form)
+        });
+        setSuccess(`Agendamento ${modalAppointment.id} atualizado com sucesso.`);
+      }
+
+      setSelectedDate(form.data);
+      closeModal();
+      await loadAgendamentos(form.data);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -183,22 +354,23 @@ export default function Agenda() {
     }
   }
 
-  function handleViewClient(agendamento) {
-    window.alert(
-      `Cliente: ${agendamento.nome}\nTelefone: ${agendamento.telefone}\nServico: ${agendamento.servico}\nData: ${formatDate(
-        agendamento.data
-      )}\nHora: ${agendamento.hora}\nStatus: ${agendamento.status}`.replace(
-        `Data: ${formatDate(agendamento.data)}`,
-        `Data: ${formatDateLabel(agendamento.data)}`
-      )
-    );
-  }
-
   return (
     <section className="flex flex-col gap-10">
       <Topbar title="Agenda diaria" subtitle="Agenda" />
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
+
+      <AppointmentModal
+        agendamento={modalAppointment}
+        form={form}
+        onChange={handleFormChange}
+        onClose={closeModal}
+        onSubmit={handleModalSubmit}
+        saving={saving}
+        servicos={servicos.length ? servicos : [{ id: "default", nome: defaultServiceName }]}
+        type={modalType}
+      />
+
       <div className="glass rounded-3xl p-8 shadow-soft">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-3">
@@ -230,7 +402,7 @@ export default function Agenda() {
             </a>
             <button
               className="bg-ink text-cream rounded-2xl px-5 py-3 text-sm"
-              onClick={handleNewAppointment}
+              onClick={openNewAppointmentModal}
               type="button"
             >
               Novo agendamento
@@ -266,7 +438,11 @@ export default function Agenda() {
                     <td className="py-4">{row.nome}</td>
                     <td className="py-4">{row.servico}</td>
                     <td className="py-4">
-                      <span className="px-3 py-1 rounded-full bg-mint/40 text-xs">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs ${statusBadgeClass(
+                          row.status
+                        )}`}
+                      >
                         {row.status}
                       </span>
                     </td>
@@ -282,7 +458,7 @@ export default function Agenda() {
                       ) : null}
                       <button
                         className="px-3 py-2 rounded-xl bg-white/70 border border-ink/10"
-                        onClick={() => handleEdit(row)}
+                        onClick={() => openEditModal(row)}
                         type="button"
                       >
                         Editar
@@ -296,7 +472,7 @@ export default function Agenda() {
                       </button>
                       <button
                         className="px-3 py-2 rounded-xl bg-ink text-cream"
-                        onClick={() => handleViewClient(row)}
+                        onClick={() => openViewModal(row)}
                         type="button"
                       >
                         Ver cliente

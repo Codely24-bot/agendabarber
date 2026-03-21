@@ -78,7 +78,7 @@ const formatarDataBr = (data = "") => {
 };
 
 const menuPrincipal = () =>
-  `Ola! Seja bem-vindo(a) a ${getBarbeariaNome()}\n\n1 . Agendar horario\n2 . Cancelar agendamento\n3 . Me tornar assinante\n4 . Falar com atendente`;
+  `👋 Ola! Seja bem-vindo(a) a ${getBarbeariaNome()}\n\n1 . 📅 Agendar horario\n2 . ❌ Cancelar agendamento\n3 . 💎 Me tornar assinante\n4 . 💬 Falar com atendente`;
 
 const resetSession = (session) => {
   session.step = "menu";
@@ -469,7 +469,7 @@ async function handleIncomingMessage(msg) {
         await typing();
         await client.sendMessage(
           msg.from,
-          "Nao localizei agendamentos ativos para este numero. Se desejar, envie *menu* para voltar ao inicio."
+          "📭 Nao localizei agendamentos ativos para este numero. Se desejar, envie *menu* para voltar ao inicio."
         );
         return;
       }
@@ -493,7 +493,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        `Plano Assinatura Mensal\n\n- 1 corte por semana via agendamentos\n- Valor mensal de R$ 159,99\n- Voce escolhe o melhor dia do vencimento\n\nSe quiser seguir, me responda com um numero de 1 a 28 informando o dia do vencimento que prefere.`
+        `💎 *Plano Assinatura Mensal*\n\n✂️ 1 corte por semana via agendamentos\n💰 Valor mensal de R$ 159,99\n📆 Voce escolhe o melhor dia do vencimento\n\nSe quiser seguir, me responda com um numero de 1 a 28 informando o dia do vencimento que prefere.`
       );
       return;
     }
@@ -504,7 +504,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Perfeito. O atendimento automatico sera pausado por 5 minutos para que um atendente possa assumir esta conversa."
+        "💬 Perfeito. O atendimento automatico sera pausado por 5 minutos para que um atendente possa assumir esta conversa."
       );
       return;
     }
@@ -623,7 +623,7 @@ async function handleIncomingMessage(msg) {
       await typing();
       await client.sendMessage(
         msg.from,
-        "Opcao invalida. Me envie um numero de 1 a 28 para informar o dia do vencimento que voce prefere."
+        "⚠️ Opcao invalida. Me envie um numero de 1 a 28 para informar o dia do vencimento que voce prefere."
       );
       return;
     }
@@ -634,7 +634,7 @@ async function handleIncomingMessage(msg) {
     await typing();
     await client.sendMessage(
       msg.from,
-      `Perfeito! Anotei seu interesse na Assinatura Mensal de R$ 159,99 com 1 corte por semana via agendamentos.\n\nDia de vencimento desejado: ${diaEscolhido}\n\nAgora vou pausar o atendimento automatico por 5 minutos para um atendente continuar seu cadastro.`
+      `💎 Perfeito! Anotei seu interesse na *Assinatura Mensal* de R$ 159,99 com 1 corte por semana via agendamentos.\n\n📆 Dia de vencimento desejado: ${diaEscolhido}\n\n💬 Agora vou pausar o atendimento automatico por 5 minutos para um atendente continuar seu cadastro.`
     );
     return;
   }

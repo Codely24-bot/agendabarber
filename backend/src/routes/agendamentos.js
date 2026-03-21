@@ -147,7 +147,7 @@ router.get("/agendamentos", requireAdmin, asyncHandler(async (req, res) => {
 
 router.put("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { status, servico, data, hora } = req.body || {};
+  const { status, servico, data, hora, nome, telefone } = req.body || {};
   const client = await pool.connect();
 
   try {
@@ -239,11 +239,21 @@ router.put("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) => {
         SET status = COALESCE($1, status),
             servico = COALESCE($2, servico),
             data = COALESCE($3, data),
-            hora = COALESCE($4, hora)
-        WHERE id = $5
+            hora = COALESCE($4, hora),
+            nome = COALESCE($5, nome),
+            telefone = COALESCE($6, telefone)
+        WHERE id = $7
         RETURNING *
       `,
-      [status || null, servico || null, data || null, hora || null, id]
+      [
+        status || null,
+        servico || null,
+        data || null,
+        hora || null,
+        nome || null,
+        telefone || null,
+        id
+      ]
     );
 
     const updatedAppointment = result.rows[0];
