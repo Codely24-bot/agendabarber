@@ -320,21 +320,96 @@ router.delete("/agendamento/:id", requireAdmin, asyncHandler(async (req, res) =>
 
 router.post("/agendamento/:id/concluir", requireAdmin, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const result = await query(
-    `
-      UPDATE agendamentos
-      SET status = 'concluido'
-      WHERE id = $1
-      RETURNING *
-    `,
-    [id]
-  );
+  const client = await pool.connect();
 
-  if (!result.rows.length) {
-    return res.status(404).json({ error: "Agendamento nao encontrado" });
+  let agendamento;
+
+  try {
+    await client.query("BEGIN");
+
+    const currentResult = await client.query(
+      `
+        SELECT *
+        FROM agendamentos
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!currentResult.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Agendamento nao encontrado" });
+    }
+
+    const currentAppointment = currentResult.rows[0];
+
+    if (currentAppointment.status === "cancelado") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Nao e possivel concluir um agendamento cancelado" });
+    }
+
+    const result = await client.query(
+      `
+        UPDATE agendamentos
+        SET status = 'concluido'
+        WHERE id = $1
+        RETURNING *
+      `,
+      [id]
+    );
+
+    agendamento = result.rows[0];
+
+    const paymentExists = await client.query(
+      `
+        SELECT id
+        FROM pagamentos_atendimento
+        WHERE agendamento_id = $1
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!paymentExists.rows.length) {
+      const serviceResult = await client.query(
+        `
+          SELECT preco
+          FROM servicos
+          WHERE barbearia_id = $1
+            AND nome = $2
+          LIMIT 1
+        `,
+        [agendamento.barbearia_id, agendamento.servico]
+      );
+
+      const servicePrice = Number(serviceResult.rows[0]?.preco || 0);
+
+      await client.query(
+        `
+          INSERT INTO pagamentos_atendimento
+            (agendamento_id, barbearia_id, cliente_nome, cliente_telefone, servico, valor, data_pagamento, status, metodo)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, CURRENT_DATE, 'pago', 'presencial')
+        `,
+        [
+          agendamento.id,
+          agendamento.barbearia_id,
+          agendamento.nome,
+          agendamento.telefone,
+          agendamento.servico,
+          servicePrice
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const agendamento = result.rows[0];
 
   try {
     await sendChatbotCompletionThanks(agendamento);

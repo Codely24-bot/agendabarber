@@ -8,17 +8,26 @@ const links = [
   { to: "/assinaturas", label: "Assinaturas" }
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobile = false, onNavigate }) {
   return (
-    <aside className="glass shadow-soft rounded-3xl p-6 flex flex-col gap-8">
+    <aside
+      className={`glass shadow-soft rounded-3xl p-6 flex flex-col gap-8 h-full ${
+        mobile ? "min-h-full" : ""
+      }`}
+    >
       <div>
-        <p className="text-sm uppercase tracking-[0.3em] text-ink/60">Barbearia Pro</p>
-        <h1 className="font-display text-2xl mt-2">Painel Admin</h1>
+        <p className="text-sm uppercase tracking-[0.22em] text-ink/60">
+          Barbearia do Negao
+        </p>
+        <h1 className="font-display text-2xl mt-2 leading-tight">
+          Painel Administrativo
+        </h1>
       </div>
       <nav className="flex flex-col gap-3">
         {links.map((link) => (
           <NavLink
             key={link.to}
+            onClick={() => onNavigate?.()}
             to={link.to}
             className={({ isActive }) =>
               `px-4 py-3 rounded-2xl text-sm font-medium transition ${

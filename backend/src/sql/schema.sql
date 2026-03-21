@@ -72,6 +72,20 @@ CREATE TABLE IF NOT EXISTS pagamentos_assinatura (
   criado_em TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS pagamentos_atendimento (
+  id SERIAL PRIMARY KEY,
+  agendamento_id INTEGER NOT NULL UNIQUE REFERENCES agendamentos(id) ON DELETE CASCADE,
+  barbearia_id TEXT NOT NULL REFERENCES barbearias(id),
+  cliente_nome TEXT NOT NULL,
+  cliente_telefone TEXT NOT NULL,
+  servico TEXT NOT NULL,
+  valor NUMERIC(10,2) NOT NULL,
+  data_pagamento DATE NOT NULL DEFAULT CURRENT_DATE,
+  status TEXT NOT NULL DEFAULT 'pago',
+  metodo TEXT NOT NULL DEFAULT 'presencial',
+  criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS consumos_assinatura (
   id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL REFERENCES clientes_assinatura(id) ON DELETE CASCADE,
@@ -106,5 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_planos_assinatura_barbearia ON planos_assinatura(
 CREATE INDEX IF NOT EXISTS idx_clientes_assinatura_barbearia ON clientes_assinatura(barbearia_id);
 CREATE INDEX IF NOT EXISTS idx_clientes_assinatura_vencimento ON clientes_assinatura(data_vencimento);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_assinatura_cliente ON pagamentos_assinatura(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_atendimento_agendamento ON pagamentos_atendimento(agendamento_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_atendimento_data ON pagamentos_atendimento(data_pagamento, criado_em);
 CREATE INDEX IF NOT EXISTS idx_consumos_assinatura_cliente ON consumos_assinatura(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_lembretes_pendentes ON lembretes(status, agendado_para);

@@ -169,18 +169,45 @@ router.get("/assinaturas/resumo", requireAdmin, asyncHandler(async (req, res) =>
     ),
     query(
       `
-        SELECT
-          pg.id,
-          c.nome AS cliente_nome,
-          pg.valor,
-          pg.data_pagamento,
-          pg.competencia,
-          pg.status
-        FROM pagamentos_assinatura pg
-        INNER JOIN clientes_assinatura c
-          ON c.id = pg.cliente_id
-        WHERE pg.barbearia_id = $1
-        ORDER BY pg.data_pagamento DESC, pg.id DESC
+        SELECT *
+        FROM (
+          SELECT
+            CONCAT('assinatura-', pg.id) AS id,
+            'assinatura' AS origem,
+            c.nome AS cliente_nome,
+            c.telefone AS cliente_telefone,
+            pg.valor,
+            pg.data_pagamento,
+            pg.competencia AS descricao,
+            NULL::text AS servico,
+            pg.status,
+            pg.metodo,
+            pg.criado_em
+          FROM pagamentos_assinatura pg
+          INNER JOIN clientes_assinatura c
+            ON c.id = pg.cliente_id
+          WHERE pg.barbearia_id = $1
+
+          UNION ALL
+
+          SELECT
+            CONCAT('atendimento-', pa.id) AS id,
+            'atendimento' AS origem,
+            pa.cliente_nome,
+            pa.cliente_telefone,
+            pa.valor,
+            pa.data_pagamento,
+            CONCAT('Atendimento finalizado em ', TO_CHAR(a.data, 'YYYY-MM-DD'), ' as ', a.hora) AS descricao,
+            pa.servico,
+            pa.status,
+            pa.metodo,
+            pa.criado_em
+          FROM pagamentos_atendimento pa
+          INNER JOIN agendamentos a
+            ON a.id = pa.agendamento_id
+          WHERE pa.barbearia_id = $1
+        ) pagamentos
+        ORDER BY data_pagamento DESC, criado_em DESC, id DESC
         LIMIT 5
       `,
       [currentBarbershop]
