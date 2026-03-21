@@ -54,6 +54,8 @@ Arquivos de exemplo para deploy:
 - O backend valida as variaveis criticas e falha cedo com mensagens mais claras de configuracao.
 - O modulo de WhatsApp foi deixado opcional no servidor para evitar falhas de deploy em ambientes sem Chromium ou sessao persistente.
 - Se quiser executar o chatbot no Railway, use um servico separado e habilite `CHATBOT_ENABLED=true` apenas em ambiente compativel.
+- Se quiser rodar tudo no mesmo servico, mantenha o repositorio em um unico deploy e defina `CHATBOT_ENABLED=true`.
+- O workspace raiz agora instala `backend`, `frontend` e `chatbot`, permitindo deploy unificado quando o ambiente suportar o WhatsApp.
 
 ## Backend
 

@@ -7,7 +7,8 @@
   },
   "workspaces": [
     "backend",
-    "frontend"
+    "frontend",
+    "chatbot"
   ],
   "scripts": {
     "build": "npm run build --workspace frontend",
