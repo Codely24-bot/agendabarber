@@ -8,6 +8,7 @@ import agendamentosRoutes from "./routes/agendamentos.js";
 import adminRoutes from "./routes/admin.js";
 import relatoriosRoutes from "./routes/relatorios.js";
 import { startReminders } from "./services/reminders.js";
+import { startSlotExpiryMonitor } from "./services/slotExpiry.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import servicosRoutes from "./routes/servicos.js";
 import assinaturasRoutes from "./routes/assinaturas.js";
@@ -169,6 +170,7 @@ async function bootstrap() {
   await initializeDatabase();
   await ensureDefaultServices(DEFAULT_BARBERSHOP_ID);
   startReminders();
+  startSlotExpiryMonitor();
 
   if (chatbotEnabled) {
     try {

@@ -13,6 +13,7 @@ import {
   cancelAppointmentReminders,
   scheduleAppointmentReminders
 } from "../services/reminderScheduler.js";
+import { deactivateExpiredOpenSlots, getCurrentSlotReference } from "../services/slotExpiry.js";
 
 const router = express.Router();
 
@@ -57,7 +58,15 @@ router.post("/agendar", asyncHandler(async (req, res) => {
 
   try {
     await client.query("BEGIN");
+    await deactivateExpiredOpenSlots();
     const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
+    const { date: currentDate, time: currentTime } = getCurrentSlotReference();
+
+    if (data < currentDate || (data === currentDate && hora < currentTime)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Nao e possivel agendar um horario que ja passou" });
+    }
+
     await ensureDefaultServices(currentBarbershop);
     const serviceExists = await ensureServiceExists(client, servico, currentBarbershop);
 

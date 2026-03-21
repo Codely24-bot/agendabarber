@@ -4,6 +4,10 @@ import { query } from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { DEFAULT_BARBERSHOP_ID } from "../config.js";
+import {
+  deactivateExpiredOpenSlots,
+  getCurrentSlotReference
+} from "../services/slotExpiry.js";
 
 const router = express.Router();
 const WEEKLY_SLOTS = [
@@ -77,6 +81,9 @@ router.get("/horarios-disponiveis", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Parametro data e obrigatorio" });
   }
 
+  await deactivateExpiredOpenSlots();
+  const { date: currentDate, time: currentTime } = getCurrentSlotReference();
+
   const result = await query(
     `
       SELECT h.hora
@@ -90,9 +97,13 @@ router.get("/horarios-disponiveis", asyncHandler(async (req, res) => {
         AND h.disponivel = true
         AND h.barbearia_id = COALESCE($2, h.barbearia_id)
         AND a.id IS NULL
+        AND (
+          h.data > $3::date
+          OR (h.data = $3::date AND h.hora >= $4)
+        )
       ORDER BY h.hora ASC
     `,
-    [data, barbeariaId || null]
+    [data, barbeariaId || null, currentDate, currentTime]
   );
 
   return res.json(result.rows.map((row) => row.hora));
@@ -103,12 +114,21 @@ router.get("/dias-disponiveis", asyncHandler(async (req, res) => {
   const datas = buildWeeklyDates(
     typeof dataInicial === "string" && dataInicial ? dataInicial : undefined
   );
+  await deactivateExpiredOpenSlots();
+  const { date: currentDate, time: currentTime } = getCurrentSlotReference();
 
   const result = await query(
     `
       SELECT
         h.data,
-        COUNT(*) FILTER (WHERE h.disponivel = true AND a.id IS NULL) AS disponiveis
+        COUNT(*) FILTER (
+          WHERE h.disponivel = true
+            AND a.id IS NULL
+            AND (
+              h.data > $3::date
+              OR (h.data = $3::date AND h.hora >= $4)
+            )
+        ) AS disponiveis
       FROM horarios h
       LEFT JOIN agendamentos a
         ON a.data = h.data
@@ -120,7 +140,7 @@ router.get("/dias-disponiveis", asyncHandler(async (req, res) => {
       GROUP BY h.data
       ORDER BY h.data ASC
     `,
-    [datas, barbeariaId || null]
+    [datas, barbeariaId || null, currentDate, currentTime]
   );
 
   const disponibilidadePorData = new Map(
@@ -139,6 +159,7 @@ router.get("/dias-disponiveis", asyncHandler(async (req, res) => {
 
 router.get("/horarios", requireAdmin, asyncHandler(async (req, res) => {
   const { dataInicial, dataFinal, barbeariaId } = req.query;
+  await deactivateExpiredOpenSlots();
   const result = await query(
     `
       SELECT h.*
@@ -161,6 +182,12 @@ router.post("/horarios", requireAdmin, asyncHandler(async (req, res) => {
   }
 
   const { barbeariaId, data, hora } = parsed.data;
+  const { date: currentDate, time: currentTime } = getCurrentSlotReference();
+
+  if (data < currentDate || (data === currentDate && hora < currentTime)) {
+    return res.status(409).json({ error: "Nao e possivel criar um horario que ja passou" });
+  }
+
   const result = await query(
     `
       INSERT INTO horarios (barbearia_id, data, hora, disponivel)
@@ -232,6 +259,34 @@ router.put("/horarios/:id/disponibilidade", requireAdmin, asyncHandler(async (re
   }
 
   const { id } = req.params;
+  await deactivateExpiredOpenSlots();
+
+  if (parsed.data.disponivel) {
+    const horarioResult = await query(
+      `
+        SELECT id, data, hora
+        FROM horarios
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!horarioResult.rows.length) {
+      return res.status(404).json({ error: "Horario nao encontrado" });
+    }
+
+    const horario = horarioResult.rows[0];
+    const { date: currentDate, time: currentTime } = getCurrentSlotReference();
+
+    if (
+      String(horario.data).slice(0, 10) < currentDate ||
+      (String(horario.data).slice(0, 10) === currentDate && horario.hora < currentTime)
+    ) {
+      return res.status(409).json({ error: "Nao e possivel reativar um horario que ja passou" });
+    }
+  }
+
   const result = await query(
     `
       UPDATE horarios

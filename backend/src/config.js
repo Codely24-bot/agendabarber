@@ -5,6 +5,8 @@ dotenv.config();
 export const DEFAULT_BARBERSHOP_ID = process.env.BARBEARIA_ID || "default";
 export const DEFAULT_BARBERSHOP_NAME =
   process.env.BARBEARIA_NOME || "Barbearia Principal";
+export const BARBERSHOP_TIMEZONE =
+  process.env.BARBEARIA_TIMEZONE || "America/Sao_Paulo";
 
 const DEFAULT_ADMIN_USERNAME = "admin";
 const DEFAULT_ADMIN_PASSWORD = "admin123";
