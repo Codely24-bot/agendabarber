@@ -95,6 +95,30 @@ Substitua a logica pelo codigo do seu chatbot quando estiver pronto.
 O chatbot foi preparado em `chatbot/robo.js` usando a base enviada por voce.
 Ele conversa com a API para buscar horarios e criar agendamentos.
 
+### Publicar chatbot em servico separado no Railway
+
+1. Crie um segundo servico no Railway apontando para este mesmo repositorio.
+2. No servico do chatbot, use `npm run chatbot:install` como build command.
+3. No servico do chatbot, use `npm run chatbot:start` como start command.
+4. Configure as variaveis com base em `.env.railway.chatbot.example`.
+5. Aponte `API_URL` para a URL publica do servico principal.
+6. Abra `/qr` na URL do servico do chatbot para autenticar o WhatsApp.
+
+Variaveis recomendadas para o servico do chatbot:
+
+- `PORT=3000`
+- `API_URL=https://seu-app-principal.up.railway.app`
+- `BARBEARIA_ID=default`
+- `BARBEARIA_NOME=BARBEARIA DO NEGAO`
+- `ADMIN_PASS=sua-senha-admin`
+
+Rotas uteis do servico do chatbot:
+
+- `/qr`
+- `/qr.png`
+- `/chatbot/status`
+- `/webhook`
+
 Variaveis:
 
 - `chatbot/.env`: `API_URL`, `BARBEARIA_ID`, `PORT`, `ADMIN_PASS`

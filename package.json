@@ -11,6 +11,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace frontend",
-    "start": "npm run start --workspace backend"
+    "start": "npm run start --workspace backend",
+    "chatbot:start": "npm --prefix chatbot start",
+    "chatbot:install": "npm --prefix chatbot install"
   }
 }
