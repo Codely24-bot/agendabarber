@@ -62,27 +62,6 @@ app.use(agendamentosRoutes);
 app.use(relatoriosRoutes);
 app.use(servicosRoutes);
 
-app.use(express.static(frontendDistPath));
-
-app.get("*", (req, res, next) => {
-  if (
-    req.path.startsWith("/auth") ||
-    req.path.startsWith("/horarios") ||
-    req.path.startsWith("/agendar") ||
-    req.path.startsWith("/agendamento") ||
-    req.path.startsWith("/agendamentos") ||
-    req.path.startsWith("/relatorios") ||
-    req.path.startsWith("/servicos") ||
-    req.path === "/health"
-  ) {
-    return next();
-  }
-
-  return res.sendFile(path.join(frontendDistPath, "index.html"));
-});
-
-app.use(errorHandler);
-
 function registerDisabledChatbotRoutes(application) {
   const payload = {
     status: "disabled",
@@ -143,6 +122,31 @@ function registerDisabledChatbotRoutes(application) {
   });
 }
 
+function registerFrontendRoutes(application) {
+  application.use(express.static(frontendDistPath));
+
+  application.get("*", (req, res, next) => {
+    if (
+      req.path.startsWith("/auth") ||
+      req.path.startsWith("/horarios") ||
+      req.path.startsWith("/agendar") ||
+      req.path.startsWith("/agendamento") ||
+      req.path.startsWith("/agendamentos") ||
+      req.path.startsWith("/relatorios") ||
+      req.path.startsWith("/servicos") ||
+      req.path.startsWith("/chatbot") ||
+      req.path.startsWith("/webhook") ||
+      req.path === "/health" ||
+      req.path === "/qr" ||
+      req.path === "/qr.png"
+    ) {
+      return next();
+    }
+
+    return res.sendFile(path.join(frontendDistPath, "index.html"));
+  });
+}
+
 async function bootstrap() {
   const validation = validateRuntimeConfig();
   const runtimeSummary = getRuntimeSummary();
@@ -178,6 +182,9 @@ async function bootstrap() {
   } else {
     registerDisabledChatbotRoutes(app);
   }
+
+  registerFrontendRoutes(app);
+  app.use(errorHandler);
 
   const port = process.env.PORT || 4000;
   app.listen(port, () => {
