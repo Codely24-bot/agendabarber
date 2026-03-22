@@ -59,6 +59,7 @@ export default function Horarios() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
+  const [deletingDate, setDeletingDate] = useState("");
 
   async function loadHorarios() {
     setLoading(true);
@@ -140,6 +141,32 @@ export default function Horarios() {
       setError(err.message);
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function handleDeleteDate(date) {
+    const confirmed = window.confirm(
+      `Excluir todos os horarios do dia ${formatDateLabel(date)}? Esta acao nao remove agendamentos ja existentes.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingDate(date);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await apiFetch(`/horarios?data=${encodeURIComponent(date)}`, {
+        method: "DELETE"
+      });
+      setSuccess(
+        `Dia ${formatDateLabel(date)} excluido com ${response.removidos || 0} horario(s) removido(s).`
+      );
+      await loadHorarios();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingDate("");
     }
   }
 
@@ -227,10 +254,20 @@ export default function Horarios() {
             {Object.entries(grouped).map(([date, items]) => (
               <div key={date} className="rounded-3xl bg-white/45 border border-ink/5 p-6">
                 <div className="flex items-center justify-between gap-4">
-                  <h4 className="font-display text-lg">{formatDateLabel(date)}</h4>
-                  <span className="text-xs uppercase tracking-[0.2em] text-ink/50">
-                    {items.length} horarios
-                  </span>
+                  <div>
+                    <h4 className="font-display text-lg">{formatDateLabel(date)}</h4>
+                    <span className="text-xs uppercase tracking-[0.2em] text-ink/50">
+                      {items.length} horarios
+                    </span>
+                  </div>
+                  <button
+                    className="rounded-2xl bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60"
+                    disabled={deletingDate === date}
+                    onClick={() => handleDeleteDate(date)}
+                    type="button"
+                  >
+                    {deletingDate === date ? "Excluindo..." : "Excluir dia"}
+                  </button>
                 </div>
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {items.map((horario) => (

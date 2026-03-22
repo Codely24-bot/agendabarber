@@ -252,6 +252,47 @@ router.post("/horarios/gerar-semana", requireAdmin, asyncHandler(async (req, res
   });
 }));
 
+router.delete("/horarios", requireAdmin, asyncHandler(async (req, res) => {
+  const { data, barbeariaId } = req.query;
+
+  if (!data) {
+    return res.status(400).json({ error: "Parametro data e obrigatorio" });
+  }
+
+  const currentBarbershop = barbeariaId || DEFAULT_BARBERSHOP_ID;
+  const activeAppointments = await query(
+    `
+      SELECT COUNT(*)::int AS total
+      FROM agendamentos
+      WHERE barbearia_id = $1
+        AND data = $2::date
+        AND status != 'cancelado'
+    `,
+    [currentBarbershop, data]
+  );
+
+  if (activeAppointments.rows[0]?.total > 0) {
+    return res.status(409).json({
+      error: "Existem atendimentos ativos neste dia. Cancele ou remarque os agendamentos antes de excluir a data."
+    });
+  }
+
+  const result = await query(
+    `
+      DELETE FROM horarios
+      WHERE barbearia_id = $1
+        AND data = $2::date
+    `,
+    [currentBarbershop, data]
+  );
+
+  return res.json({
+    ok: true,
+    removidos: result.rowCount || 0,
+    data
+  });
+}));
+
 router.put("/horarios/:id/disponibilidade", requireAdmin, asyncHandler(async (req, res) => {
   const parsed = disponibilidadeSchema.safeParse(req.body || {});
   if (!parsed.success) {
