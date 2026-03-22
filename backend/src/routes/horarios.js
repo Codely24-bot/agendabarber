@@ -23,7 +23,7 @@ const WEEKLY_SLOTS = [
   "18:00",
   "19:00"
 ];
-const ALLOWED_WEEK_DAYS = [1, 2, 3, 4, 5, 6];
+const ALLOWED_WEEK_DAYS = [2, 3, 4, 5, 6];
 
 const horariosSchema = z.object({
   barbeariaId: z.string().optional(),

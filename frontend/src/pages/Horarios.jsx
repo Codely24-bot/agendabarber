@@ -154,7 +154,7 @@ export default function Horarios() {
         <div className="glass rounded-3xl p-8 shadow-soft">
           <h3 className="font-display text-xl">Agenda semanal automatica</h3>
           <p className="text-sm text-ink/60 mt-2">
-            Gere horarios de segunda a sabado, das 07:00 as 19:00, com pausa de 12:00 a 14:00.
+            Gere horarios de terca a sabado, das 07:00 as 19:00, com pausa de 12:00 a 14:00.
           </p>
           <div className="mt-6 flex flex-col gap-4">
             <label className="text-sm text-ink/70">
